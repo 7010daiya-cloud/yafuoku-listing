@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ヤフオク出品文作成</title>
+<style>
+  :root{
+    --bg:#17181c; --panel:#1e2026; --panel2:#22252c; --panel3:#282b33;
+    --border:#383b45; --text:#e8e6e1; --muted:#8b8e98;
+    --accent:#e0472f; --accent-dark:#c23a25; --ok:#79c98b;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0;font-family:"Segoe UI","Hiragino Sans","Yu Gothic UI",Meiryo,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.55;overflow:hidden;}
+  #app{display:flex;height:100vh;width:100vw;}
+
+  /* ===== 左：入力パネル ===== */
+  #side{width:440px;min-width:440px;background:var(--panel);border-right:1px solid #2c2e36;
+    display:flex;flex-direction:column;}
+  .logo{padding:12px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2c2e36;}
+  .logo .mark{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:.95rem;flex:none;}
+  .logo b{font-size:.95rem;letter-spacing:.04em;}
+  .logo span{font-size:.66rem;color:var(--muted);margin-left:auto;}
+  .sideScroll{flex:1;overflow-y:auto;padding:2px 18px 20px;}
+  .sideScroll::-webkit-scrollbar{width:9px;}
+  .sideScroll::-webkit-scrollbar-thumb{background:#33363f;border-radius:5px;}
+  .sec{padding:11px 0 2px;}
+  .sec h3{font-size:.68rem;color:var(--muted);letter-spacing:.12em;margin:0 0 7px;font-weight:normal;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{background:var(--panel3);border:1px solid var(--border);color:#d5d3ce;border-radius:8px;
+    padding:5px 11px;font-size:.82rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;user-select:none;}
+  .chip:hover{border-color:var(--accent);}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:bold;}
+  .chip.more{color:var(--muted);border-style:dashed;}
+  .chip .x{font-size:.7rem;opacity:.55;cursor:pointer;}
+  .chip .x:hover{opacity:1;}
+  input[type=text],textarea{width:100%;background:var(--panel2);border:1px solid var(--border);
+    color:#fff;border-radius:8px;padding:7px 10px;font:inherit;font-size:.88rem;}
+  input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;}
+  textarea{resize:vertical;}
+  ::placeholder{color:#5e626e;}
+  .row{display:flex;gap:6px;align-items:center;}
+  .miniadd{border:1px dashed var(--border);background:var(--panel2);border-radius:8px;padding:6px 11px;
+    font:inherit;font-size:.78rem;cursor:pointer;color:var(--muted);white-space:nowrap;}
+  .miniadd:hover{border-color:var(--accent);color:#fff;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;}
+  .fld{display:block;font-size:.68rem;color:var(--muted);margin:7px 0 2px;}
+  .warn{font-size:.76rem;color:#ffb4a8;background:#3a2320;border:1px solid #6e352c;
+    border-radius:8px;padding:6px 10px;margin-top:8px;display:none;}
+  .warn.show{display:block;}
+  .filebtn{display:inline-block;border:1px solid var(--border);border-radius:8px;padding:6px 12px;
+    font-size:.78rem;cursor:pointer;background:var(--panel2);color:var(--muted);}
+  .filebtn:hover{border-color:var(--accent);color:#fff;}
+  .filebtn input{display:none;}
+  /* クリック入力パッド */
+  #padPanel{position:fixed;display:none;z-index:360;background:#111318;border:1px solid var(--border);
+    border-radius:12px;padding:8px;box-shadow:0 10px 34px rgba(0,0,0,.55);}
+  .padrow{display:flex;gap:5px;margin-bottom:5px;}
+  .padkey{min-width:38px;height:38px;background:var(--panel3);border:1px solid var(--border);color:#fff;
+    border-radius:8px;font:inherit;font-size:.95rem;font-weight:bold;cursor:pointer;flex:1;padding:0 6px;}
+  .padkey:hover{border-color:var(--accent);}
+  .padkey.fn{background:#3a2320;border-color:#6e352c;color:#ffb4a8;}
+  .padclose{width:100%;background:none;border:none;color:var(--muted);font:inherit;font-size:.75rem;cursor:pointer;padding:3px;}
+  .padclose:hover{color:#fff;}
+  .num-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  #numInput{width:120px;font-weight:bold;font-size:1rem;letter-spacing:.08em;}
+  .ghost{background:var(--panel3);border:1px solid var(--border);border-radius:8px;padding:7px 13px;
+    font:inherit;font-size:.8rem;cursor:pointer;color:#d5d3ce;}
+  .ghost:hover{border-color:var(--accent);color:#fff;}
+  .primary{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:9px 18px;
+    font:inherit;font-size:.86rem;cursor:pointer;font-weight:bold;white-space:nowrap;}
+  .primary:hover{background:var(--accent-dark);}
+  .hint{font-size:.7rem;color:var(--muted);margin-top:5px;}
+  /* スペック2列グリッド */
+  #specMount{display:grid;grid-template-columns:1fr 1fr;gap:1px 10px;}
+  #specMount .cell{min-width:0;}
+  #specMount .cell .fld{margin-top:6px;}
+  #specMount .chips{gap:4px;margin-top:4px;}
+  #specMount .chip{font-size:.72rem;padding:3px 8px;border-radius:6px;}
+  #specMount input{font-size:.82rem;padding:6px 8px;}
+  #specMount .miniadd{padding:5px 8px;font-size:.7rem;}
+  .pick .chips{margin-top:5px;}
+
+  /* ===== 右：タイトル＋プレビュー ===== */
+  #main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg);}
+  .titlebar{padding:13px 20px 11px;border-bottom:1px solid #2c2e36;background:#1a1c21;}
+  .trow1{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;}
+  .trow1 .lbl{font-size:.68rem;color:var(--muted);letter-spacing:.12em;}
+  #kanriView{font-weight:bold;font-size:.85rem;color:#fff;background:var(--panel3);
+    border:1px solid var(--border);border-radius:6px;padding:1px 10px;}
+  #titleCount{font-size:.8rem;color:var(--ok);margin-left:auto;}
+  #titleCount.over{color:#ff8a75;font-weight:bold;}
+  .trow2{display:flex;gap:10px;align-items:center;}
+  #titleOut{flex:1;font-weight:bold;font-size:1rem;padding:10px 13px;border-radius:10px;}
+  .prevarea{flex:1;display:flex;flex-direction:column;padding:12px 20px 14px;min-height:0;}
+  .prevhead{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap;}
+  .prevhead .lbl{font-size:.68rem;color:var(--muted);letter-spacing:.12em;flex:1;}
+  .prev-wrap{flex:1;overflow:auto;background:#fff;border-radius:10px;min-height:0;}
+  #descPreview{width:840px;max-width:none;border:0;display:block;height:2400px;}
+
+  /* ===== 引き出し（履歴・テンプレ編集） ===== */
+  #backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;
+    transition:opacity .18s;z-index:290;}
+  #backdrop.show{opacity:1;pointer-events:auto;}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(620px,94vw);background:var(--panel);
+    border-left:1px solid var(--border);z-index:300;transform:translateX(102%);transition:transform .2s;
+    display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(0,0,0,.4);}
+  .drawer.show{transform:none;}
+  .drawer .dhead{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid #2c2e36;}
+  .drawer .dhead b{font-size:.95rem;}
+  .drawer .dhead .close{margin-left:auto;background:none;border:none;color:var(--muted);
+    font-size:1.25rem;cursor:pointer;padding:2px 8px;}
+  .drawer .dhead .close:hover{color:#fff;}
+  .drawer .dbody{flex:1;overflow-y:auto;padding:14px 18px 30px;}
+  .drawer h2{font-size:.85rem;color:#ffb4a8;margin:18px 0 8px;}
+  .box{border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:10px;background:var(--panel2);}
+  .box label{font-size:.7rem;color:var(--muted);display:block;margin-bottom:2px;}
+  .box textarea{min-height:64px;font-size:.83rem;}
+  .box .del{float:right;}
+  .maprow{display:grid;grid-template-columns:90px 1fr 1fr 30px;gap:6px;align-items:center;margin-bottom:5px;}
+  .maprow .mcode{font-weight:bold;font-size:.82rem;}
+  .maprow input{font-size:.82rem;padding:5px 7px;}
+  .maprow .mdel{color:var(--accent);cursor:pointer;text-align:center;}
+  .row2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;flex-wrap:wrap;}
+  .hist-item{border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;
+    padding:8px 12px;margin-bottom:8px;background:var(--panel2);}
+  .hist-item .ht{font-weight:bold;font-size:.85rem;word-break:break-all;}
+  .hist-item .hm{font-size:.7rem;color:var(--muted);margin:2px 0 6px;}
+  .hist-item .hb{display:flex;gap:8px;flex-wrap:wrap;}
+  .hist-item .hb button{padding:5px 12px;font-size:.76rem;}
+
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#000;color:#fff;
+    padding:10px 24px;border-radius:999px;font-size:.9rem;opacity:0;pointer-events:none;
+    transition:opacity .25s;z-index:400;max-width:90%;text-align:center;border:1px solid #333;}
+  #toast.show{opacity:1;}
+
+  @media(max-width:1100px){ #side{width:350px;min-width:350px;} }
+  @media(max-width:860px){
+    html,body{height:auto;overflow:auto;}
+    #app{flex-direction:column;height:auto;}
+    #side{width:100%;min-width:0;}
+    .sideScroll{overflow:visible;}
+    .prev-wrap{height:480px;flex:none;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== 左：入力 ===== -->
+  <aside id="side">
+    <div class="logo"><span class="mark">出</span><b>ヤフオク出品文作成</b><span>v3</span></div>
+    <div class="sideScroll">
+
+      <div class="sec">
+        <h3>型式（最近使った順）</h3>
+        <div class="chips" id="modelChips"></div>
+        <div class="row" style="margin-top:7px">
+          <input type="text" id="modelAdd" placeholder="新しい型式（例：GRS200）">
+          <button class="miniadd" id="modelAddBtn">＋追加</button>
+        </div>
+        <div class="grid2" style="margin-top:4px">
+          <div><label class="fld">メーカー（自動入力・手直しOK）</label><input type="text" id="maker" placeholder="日産"></div>
+          <div><label class="fld">車種名（自動入力・手直しOK）</label><input type="text" id="car" placeholder="フーガ"></div>
+        </div>
+        <div class="warn" id="carWarn">この型式は車種が未登録です。車種名を入力するか、「⚙ 設定」の型式→車種対応表で登録してください。</div>
+        <div style="margin-top:8px">
+          <label class="filebtn">📄 auction_config.json 読込
+            <input type="file" id="configFile" accept=".json,application/json">
+          </label>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>管理番号</h3>
+        <div class="chips" id="prefixChips" style="margin-bottom:7px"></div>
+        <div class="num-row">
+          <input type="text" id="numInput" inputmode="numeric" placeholder="8664">
+          <button class="ghost" id="nextNumBtn">前回 +1</button>
+          <span style="flex:1"></span>
+          <input type="text" id="prefixAdd" placeholder="＋イニシャル" style="width:110px;font-size:.78rem">
+          <button class="miniadd" id="prefixAddBtn">追加</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>商品タイプ</h3>
+        <div class="chips" id="typeChips"></div>
+      </div>
+
+      <div class="sec">
+        <h3>部品名（タイトルに入るキーワード）</h3>
+        <div id="partMount"></div>
+      </div>
+
+      <div class="sec">
+        <h3 id="specTitle">スペック</h3>
+        <div id="specMount"></div>
+      </div>
+
+      <div class="sec">
+        <h3>追加の定型文（あてはまるものを複数選択）</h3>
+        <div class="chips" id="extraChips"></div>
+        <div id="serialRow" style="display:none;margin-top:8px">
+          <label class="fld">シリアルナンバー（定型文の【　】内に入ります）</label>
+          <input type="text" id="serialInput" placeholder="クリックでパッド入力もできます">
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- ===== 右：タイトル＋プレビュー ===== -->
+  <div id="main">
+    <div class="titlebar">
+      <div class="trow1">
+        <span class="lbl">出品タイトル（自動生成・直接編集OK）</span>
+        <span id="kanriView">—</span>
+        <span id="titleCount"></span>
+      </div>
+      <div class="trow2">
+        <input type="text" id="titleOut">
+        <button class="primary" id="copyTitle">タイトルをコピー</button>
+      </div>
+    </div>
+    <div class="prevarea">
+      <div class="prevhead">
+        <span class="lbl">説明欄プレビュー（aucfanテンプレ・バナーは表示用に差し替え）</span>
+        <button class="ghost" id="saveHist">★ 履歴に保存</button>
+        <button class="ghost" id="openHist">🕐 履歴</button>
+        <button class="ghost" id="openEditor">⚙ 設定</button>
+        <button class="primary" id="copyHtml">HTMLをコピー</button>
+      </div>
+      <div class="prev-wrap"><iframe id="descPreview" sandbox=""></iframe></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 引き出し：テンプレ編集 ===== -->
+<div id="backdrop"></div>
+<div class="drawer" id="editorDrawer">
+  <div class="dhead"><b>⚙ 設定（並び順・商品タイプ・型式対応表／自動保存）</b><button class="close" data-close>×</button></div>
+  <div class="dbody">
+    <label class="fld">タイトルの並び順テンプレ　<span class="hint" style="display:inline">使える記号: {管理番号} {メーカー} {車種} {型式} {部品名} {スペック}</span></label>
+    <input type="text" id="titleFormat">
+
+    <label class="fld" style="margin-top:12px">イニシャル候補（カンマ区切り）</label>
+    <input type="text" id="prefixEdit">
+
+    <h2>商品タイプ</h2>
+    <div id="typeEditList"></div>
+    <div class="row2">
+      <button class="ghost" id="addType">＋ タイプを追加</button>
+      <button class="ghost" id="resetTpl">すべて初期状態に戻す</button>
+    </div>
+
+    <h2>追加の定型文（選択チップに出ます・■ブロックの後ろに挿入）</h2>
+    <div class="hint">{シリアル}と書いた場所には画面のシリアルナンバー欄の値が入ります。</div>
+    <div id="extraEditList"></div>
+    <div class="row2"><button class="ghost" id="addExtra">＋ 定型文を追加</button></div>
+
+    <h2>型式 → メーカー・車種 対応表</h2>
+    <div class="hint">空欄の車種は型式選択時に警告が出ます。ここで埋めれば以後自動入力されます。</div>
+    <div id="mapList" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:8px;max-width:480px">
+      <input type="text" id="mapAddCode" placeholder="型式"><input type="text" id="mapAddMaker" placeholder="メーカー"><input type="text" id="mapAddCar" placeholder="車種"><button class="miniadd" id="mapAddBtn">＋</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 引き出し：履歴 ===== -->
+<div class="drawer" id="histDrawer">
+  <div class="dhead"><b>🕐 出品履歴（呼び出して使い回す）</b><button class="close" data-close>×</button></div>
+  <div class="dbody">
+    <input type="text" id="histSearch" placeholder="車種名・部品名・型式などで絞り込み">
+    <div id="histList" style="margin-top:10px"></div>
+    <div class="row2"><span class="hint" id="histCount"></span></div>
+  </div>
+</div>
+
+<div id="padPanel"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ===== 埋め込みテンプレート（template_source.html をバイト単位で保持） ===== */
+const B64TPL = "PEJSPgo8Q0VOVEVSPgoKCgo8Rk9OVCBTSVpFPTMgQ09MT1I9IzNjM2MzYz4KPEI+44CQCnt7VElUTEV9fQrjgJEKPC9CPjxCUj48QlI+PC9GT05UPgoKPFRBQkxFIFdJRFRIPTgwMCBCT1JERVI9MCBDRUxMU1BBQ0lORz0xIENFTExQQURESU5HPTEwIEJHQ09MT1I9I2MwYzBjMD4KCjxUUj4KPFREIFdJRFRIPTgwIEJHQ09MT1I9I2UwZTBlMCBBTElHTj1jZW50ZXI+PEZPTlQgQ09MT1I9IzNjM2MzYz4KPEI+5ZWG5ZOB6Kqs5piOPC9CPjwvRk9OVD48L1REPgo8VEQgQkdDT0xPUj0jRkZGRkZGIEFMSUdOPWxlZnQ+PEZPTlQgU0laRT0zIENPTE9SPSM1MjUyNTI+CgrjgZPjgaHjgonjga7llYblk4Hjga/jgIDou4rkuKHlnovlvI88U1RST05HPuOAkHt7TU9ERUx9feOAkTwvU1RST05HPuOAgOOBi+OCieWPluOCiuWkluOBl+iHtOOBl+OBvuOBl+OBn+OAggoKCjxCUj4Ke3tCVUxMRVRTfX0KCjxCUj48QlI+4oC75LiL6KiY5rOo5oSP5LqL6aCF44Gr5b+F44Ga5ZCM5oSP44GX44Gf5LiK44Gn44GU5YWl5pyt44KS44GK6aGY44GE6Ie044GX44G+44GZ44CCCjxCUj7lgrfjg7vmsZrjgoznrYkKPEJSPuKYhuWFqOS9k+eahOOBq+S9v+eUqOOBq+S8tOOBhuWwj+WCt+OChOWKo+WMluOBjOOBlOOBluOBhOOBvuOBmeOAggo8QlI+4piG5YK344O75rGa44KM44Gr6Zai44GX44G+44GX44Gm44Gv55S75YOP44KS44KI44GP44GU56K66KqN5LiL44GV44GE44CCCjxCUj7imIbku5jlsZ7lk4HjgavplqLjgZfjgb7jgZfjgabjga/nlLvlg4/jgavjgYLjgovnianjgaDjgZHjgavjgarjgorjgb7jgZnjga7jgafjgojjgY/jgZTnorroqo3jgY/jgaDjgZXjgYTjgIIKPEJSPuKYhuS6kuaPm+aAp+OBjOOBguOCi+OBi+OBqeOBhuOBi+WvvuW/nOOBl+OBpuOBhOOCi+OBi+OBquOBqeOBruOBlOizquWVj+OBr+OBiuetlOOBiOOBp+OBjeOBvuOBm+OCk+OBruOBp+OBguOCieOBi+OBmOOCgeOBlOS6huaJv+OBj+OBoOOBleOBhOOAgjwvRk9OVD4KPC9URD4KPC9UUj4KCgo8VFI+CjxURCBXSURUSD04MCBCR0NPTE9SPSNlMGUwZTAgQUxJR049Y2VudGVyPjxGT05UIENPTE9SPSMzYzNjM2M+PEI+5rOo5oSP5LqL6aCFPC9CPjwvRk9OVD48L1REPgo8VEQgQkdDT0xPUj0jRkZGRkZGIEFMSUdOPWxlZnQ+CjxGT05UIFNJWkU9MyBDT0xPUj0jNTI1MjUyPi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjxCUj4K5rOo5oSP5LqL6aCFCjxCUj4tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tPEJSPgoKPEJSPuKXhuiQveacreW+jOOBrzI05pmC6ZaT5Lul5YaF44Gr44GU6YCj57Wh44GK6aGY44GE44GX44G+44GZ44CCCjxCUj4KPEJSPuKXhuS7o+mHkeW8leaPm+OBp+OBrueZuumAgeOBr+WvvuW/nOOBl+OBpuOBiuOCiuOBvuOBm+OCk+OBruOBp+S6iOOCgeOBlOS6huaJv+OBj+OBoOOBleOBhOOAggo8QlI+CjxCUj7il4bmpa3li5njga7pg73lkIjjgarjganjgafnmbrpgIHkvZzmpa3jgasz772eNOaXpeOBi+OBi+OCi+WgtOWQiOOCguOBlOOBluOBhOOBvuOBmeOAggo8QlI+CjxCUj7il4boqZXkvqHjga7mgqrjgYTmlrnjgoTmlrDopo/jga7mlrnjga/lhaXmnK3jgpLlj5bjgormtojjgZnloLTlkIjjgYzmnInjgorjgb7jgZnjga7jgafjgZTnkIbop6Pjga7jgbvjganjgYrpoZjjgYTnlLPjgZfkuIrjgZLjgb7jgZnjgIIKPEJSPgo8QlI+4peG5YaZ55yf44Gr5YaZ44Gj44Gm44GE44KL44KC44Gu44GM5YWo44Gm44Go44Gq44KK44G+44GZ44CCCjxCUj4KPEJSPuKXhuWVhuWTgeOBrueKtuaFi+OChOWCt+etieOBq+mWouOBl+OBvuOBl+OBpuOBr+OAgeaOsui8ieWGmeecn+OCkuOBlOeiuuiqjeOBj+OBoOOBleOBhOOAggo8QlI+CjxCUj7il4blj6/og73jgarnr4Tlm7LjgafkuIHlr6fjgarmpJzlk4HjgpLjgZXjgZvjgabjgYTjgZ/jgaDjgYTjgabjgYrjgorjgb7jgZnjgYzjgIHopovokL3jgajjgZfjgoToqJjovInjg5/jgrnjgYzjgYLjgovloLTlkIjjgoLjgZTjgZbjgYTjgb7jgZnjga7jgafjgZTkuobmib/jgY/jgaDjgZXjgYTjgIIKPEJSPgo8QlI+4peG5Z+65pys55qE44Gr55S75YOP44Gr44Gm44GU5Yik5pat44KS44GE44Gf44Gg44GN44G+44GX44Gm44CB44OO44O844Kv44Os44O844Og44CB44OO44O844Oq44K/44O844Oz44Go44GV44Gb44Gm44GE44Gf44Gg44GN44G+44GZ44Gu44Gn44GU55CG6Kej44KS44GK6aGY44GE6Ie044GX44G+44GZ44CCCjxCUj4KPEJSPuKXhuWHuuWTgeWVhuWTgeOBr+aWsOWTgeOBp+OBr+OBlOOBluOBhOOBvuOBm+OCk+OBruOBp+OAgeWujOeSp+OBquWVhuWTgeOCkuOBlOW4jOacm+OBruaWueOChOe5iue0sOOBquaWueOBr+OBlOWFpeacreOCkuOBlOmBoOaFruOBhOOBn+OBoOOBjeOBvuOBmeOCiOOBhuOBiumhmOOBhOOBhOOBn+OBl+OBvuOBmeOAggo8QlI+CjxCUj7il4bokL3mnK3lvozjga7jgq3jg6Pjg7Pjgrvjg6vjga/jgYrlj5fjgZHjgafjgY3jgb7jgZvjgpPjga7jgafjgIHjgZTkuI3mmI7jgarngrnjgarjganjga/jgqrjg7zjgq/jgrfjg6fjg7PplovlgqzkuK3jgavjgYrllY/jgYTlkIjjgo/jgZvjgY/jgaDjgZXjgYTjgIIKPEJSPuS9huOBl+OAgeOCquODvOOCr+OCt+ODp+ODs+e1guS6huebtOWJjeOBp+OBruOBiuWVj+OBhOWQiOOCj+OBm+OBq+OBr+WbnuetlOOBp+OBjeOBquOBhOWgtOWQiOOCguOBlOOBluOBhOOBvuOBmeOAggo8QlI+CjxCUj7il4bml6Xmm5zml6Xjg7vnpa3ml6Xjga/jgZTpgKPntaHlh7rmnaXjgb7jgZvjgpPjga7jgafjgojjgo3jgZfjgY/jgYrpoZjjgYToh7TjgZfjgb7jgZnjgIIKCgo8QlI+PEJSPuOAkFHjgJHllYblk4HjgavjgaTjgYTjgabjgIHjgZTos6rllY/jgoTmsJfjgavjgarjgovjgZPjgajjgYzjgZTjgZbjgYTjgb7jgZfjgZ/jgonjgIFRJkHjgavjgabjgYrmsJfou73jgavjgYrllY/jgYTlkIjjgo/jgZvjgY/jgaDjgZXjgYTjgIIKCgo8QlI+PEJSPjxCUj7jgJDigKbllYblk4Hjga7lkIzmorHjgavjgaTjgYTjgabigKbjgJEKCjxCUj7kuIDluqbjgavopIfmlbDjga7llYblk4HjgpLjgZTokL3mnK3poILjgY3jgb7jgZfjgZ/loLTlkIjjgafjgYLjgaPjgabjgoLjgIHjgYrlrqLmp5jjgYvjgonjga7jgYrnlLPjgZflh7rjgYzjgarjgYTloLTlkIjjga/llYblk4Hmr47jga7lgIvliKXnmbrpgIHjgajjgZXjgZvjgabpoILjgYTjgabjgYrjgorjgb7jgZnjgIIKPEJSPuWQjOaiseOCkuOBlOW4jOacm+OBleOCjOOCi+OBiuWuouanmOOBr+OBlOW4jOacm+OBleOCjOOCi+WFqOOBpuOBruWVhuWTgeOCkuOBlOiQveacreOBruS4iuOBp+OAgeOBneOBruaXqOOBiueUs+OBl+S7mOOBkeOBj+OBoOOBleOBhOOAggo8QlI+5ZWG5ZOB44Gu57WE44G/5ZCI44KP44Gb44Gr44KI44Gj44Gm44Gv55m66YCB5pa55rOV44KE6YCB5paZ44K144Kk44K644Gu5aSJ5pu044CB5ZCM5qKx5a++5b+c44GM5Ye65p2l44GL44Gt44KL44KC44Gu44KC5b6h5bqn44GE44G+44GZ44CC5b+F44Ga6LOq5ZWP44KI44KK44GU56K66KqN44KS44GK6aGY44GE55Sz44GX5LiK44GS44G+44GZ44CCCgoKPEJSPiA8QlI+PEJSPiAgISHms6jmhI/kuovpoIUgISEKCjxCUj7lv4XjgZrllYblk4HoqqzmmI7jg7voh6rlt7HntLnku4vjg7vms6jmhI/kuovpoIXnrYnjga7nhp/oqq3jgZfjgIHntI3lvpfjga7kuIrjgafjgZTlhaXmnK3jgpLjgYrpoZjjgYTjgZfjgb7jgZnjgIIKPEJSPuOBlOWFpeacreOCkumgguOBhOOBn+aZgueCueOBp+azqOaEj+S6i+mgheetieOAgeWQjOaEj+mgguOBhOOBn+OCguOBruOBqOiHtOOBl+OBvuOBmeOAggo8QlI+PEJSPuOBlOiQveacreW+jOOBr+W8iuekvuOBi+OCieOBruOBlOahiOWGheOBr+WfuuacrOeahOOBq+ihjOOBo+OBpuOBiuOCiuOBvuOBm+OCk+OAggo8QlI+PEJSPuWVhuWTgeOBq+mWouOBmeOCi+izquWVj+OBr+W/heOBmuWFpeacreODu+iQveacreWJjeOBq+OBiumhmOOBhOOBl+OBvuOBmeOAggo8QlI+5pei44Gr5ZWG5ZOB6Kqs5piO5paH44Gr6KiY6LyJ44GV44KM44Gm44GE44KL5YaF5a6544Gu6LOq5ZWP44Gr44Gk44GE44Gm44Gu6L+U562U44Gv44CB5Yud5omL44Gq44GM44KJ55yB44GL44Gb44Gm6aCC44GN44G+44GZ44CCCjxCUj7jgb7jgZ/jgYrlgKTlvJXjgY3kuqTmuInjgavov5TnrZTjga/oh7TjgZfjgb7jgZvjgpPjgIIKPEJSPuWVhuWTgeOBr+eUu+WDj+OBruOCguOBruOBjOWFqOOBpuOBqOOBquOCiuOBvuOBmeOAgueUu+WDj+OBq+OBquOBhOOCguOBruOBr+S4gOWIh+S7mOWxnuOBl+OBvuOBm+OCk+OAggo8QlI+PEJSPuS9v+eUqOa4iOOBv+i7iuOCiOOCiuWPluOCiuWkluOBl+OBn+S4reWPpOmDqOWTgeOBqOOBquOCiuOBvuOBmeOAgumZpOWOu+OBl+OBjeOCjOOBquOBhOaxmuOCjOOChOeUu+WDj+OBp+OBr+eiuuiqjeOBl+mbo+OBhOe0sOOBi+OBquWwj+WCt+OBjOOBguOCiuOBvuOBmeOAggo8QlI+44G+44Gf5ZWG5ZOB44Gr44KI44Gj44Gm5YCL5L2T5beu44GM44GC44KK5pCN5YK36YOo44Gu6KaL6JC944Go44GX562J44GC44KL5aC05ZCI44GM5b6h5bqn44GE44G+44GZ44CCCjxCUj7lj5bku5jjgoTkvb/nlKjjgYzlh7rmnaXjgarjgYTjgojjgYbjgarokZfjgZfjgYTmkI3lgrfjgYznhKHjgYTpmZDjgornj77nirbosqnlo7LjgajjgZXjgZvjgabpoILjgYTjgabjgYrjgorjgb7jgZnjgIIKPEJSPuelnue1jOizquOBquaWueOBr+WFpeacreOCkuOBiuaOp+OBiOOBj+OBoOOBleOBhOOAggo8QlI+PEJSPuOBiuWxiuOBkeOBleOCjOOBn+WVhuWTgeOBjOWVhuWTgeiqrOaYjuOBq+iomOi8ieOBleOCjOOBpuOBhOOCi+eKtuaFi+OBqOiRl+OBl+OBj+eVsOOBquOCi+WgtOWQiOOCkumZpOOBjeODjuODvOOCr+ODrOODvOODoOODu+ODjuODvOODquOCv+ODvOODsyDjgpLjgZTkuobop6PjgYTjgZ/jgaDjgZHjgovmlrnjga7jgb/jgZTlhaXmnK3jgY/jgaDjgZXjgYTjgIIKPEJSPjxCUj7poJjlj47mm7jnrYnjga7nmbrooYzjga/ooYzjgaPjgabjgYrjgorjgb7jgZvjgpPjga7jgafjgYLjgonjgYvjgZjjgoHjgZTkuobmib/jgY/jgaDjgZXjgYTjgIIKPEJSPuOBlOmAo+e1oeODu+OBlOizquWVj+WbnuetlOetieOBr+WNiOWJjTnmmYLjgYvjgonljYjlvow15pmC44G+44Gn44Gr44GU6YCj57Wh6aCC44GR44KM44Gw6L+U5L+h44GV44Gb44Gm6aCC44GN44G+44GZ44CCCjxCUj7igLvlvIrnpL7kvJHmpa3ml6XjgavjgojjgorkuIDpg6jlnJ/mm5zjg7vml6Xmm5zjg7vnpZ3npa3ml6Xjga/jgZTpgKPntaHjg7vjgZTos6rllY/lm57nrZTjg7vnmbrpgIHmpa3li5nnrYnjgIHkuIDliIfjga7jgYrlj5blvJXjga/jgafjgY3jgb7jgZvjgpPjgIIgPEJSPjwvRk9OVD4KPC9URD4KPC9UUj4KCgo8VFI+CjxURCBXSURUSD04MCBCR0NPTE9SPSNlMGUwZTAgQUxJR049Y2VudGVyPjxGT05UIENPTE9SPSMzYzNjM2M+CjxCPumAgeS7mOaWueazlTwvQj48L0ZPTlQ+PC9URD4KPFREIEJHQ09MT1I9I0ZGRkZGRiBBTElHTj1sZWZ0PjxGT05UIFNJWkU9MyBDT0xPUj0jNTI1MjUyPgrlrprlvaLlpJbpg7Xkvr/jgIHjgobjgYbjg6Hjg7zjg6vjgIHjg6Tjg57jg4jpgYvovLjjgIHkvZDlt53mgKXkvr/jgIHjgobjgYbjg5Hjg4Pjgq/jgIHjg6zjgr/jg7zjg5Hjg4Pjgq/jg5fjg6njgrnjgIHjg6zjgr/jg7zjg5Hjg4Pjgq/jg6njgqTjg4g8L0ZPTlQ+PC9URD4KPC9UUj4KCgo8VFI+CjxURCBXSURUSD04MCBCR0NPTE9SPSNlMGUwZTAgQUxJR049Y2VudGVyPjxGT05UIENPTE9SPSMzYzNjM2M+CjxCPuaUr+aJleaWueazlTwvQj48L0ZPTlQ+PC9URD4KPFREIEJHQ09MT1I9I0ZGRkZGRiBBTElHTj1sZWZ0PjxGT05UIFNJWkU9MyBDT0xPUj0jNTI1MjUyPgpZYWhvbyHjgYvjgpPjgZ/jgpPmsbrmuIjvvIg8QSBIUkVGPWh0dHBzOi8vcGF5bWVudC55YWhvby5jby5qcC8gVEFSR0VUPW5ldz7oqbPntLA8L0E+77yJPC9GT05UPjwvVEQ+CjwvVFI+CgoKPFRSPgo8VEQgV0lEVEg9ODAgQkdDT0xPUj0jZTBlMGUwIEFMSUdOPWNlbnRlcj48Rk9OVCBDT0xPUj0jM2MzYzNjPgo8Qj7jgZ3jga7ku5Y8L0I+PC9GT05UPjwvVEQ+CjxURCBCR0NPTE9SPSNGRkZGRkYgQUxJR049bGVmdD4KPEZPTlQgU0laRT0zIENPTE9SPSM1MjUyNTI+CuWHuuWTgeOBleOCjOOBpuOBhOOCi+WVhuWTgeOBqOWQjOi7iueoruODu+WQjOW9ouW8j+OBp+WHuuWTgeOBleOCjOOBpuOBhOOBquOBhOS7luOBruOBk+OBruWVhuWTgeOBjOassuOBl+OBhOOBquOBqeOBruimgeacm+OBjOOBlOOBluOBhOOBvuOBl+OBn+OCieizquWVj+ashOOBi+OCieOBlOW4jOacm+OBj+OBoOOBleOBhOOAggrlnKjluqvjgYzjgYLjgorjgb7jgZfjgZ/jgonlh7rlk4HjgZfjgabjgYTjgY3jgZ/jgYTjgajmgJ3jgYTjgb7jgZnjgIIKPEJSPui/lOS/oeOBquOBj+WHuuWTgeOBleOCjOOBpuOBhOOCi+WgtOWQiOOCguOBlOOBluOBhOOBvuOBmeOBruOBp+aYr+mdnuODleOCqeODreODvOOBl+OBpuOBlOeiuuiqjeOBj+OBoOOBleOBhOOAggo8QlI+44GT44Gh44KJ44Gu6YO95ZCI44Gr44KI44KK44CB5Ye65ZOB44GX44Gq44GE5aC05ZCI44KC44GU44GW44GE44G+44GZ44Gu44Gn5LqI44KB44GU5LqG5om/44GP44Gg44GV44GE44CCPC9GT05UPgo8L1REPgo8L1RSPgoKPC9UQUJMRT48QlI+Cgo8QSBIUkVGPWh0dHBzOi8vYXVjdGlvbnMueWFob28uY28uanAvc2VsbGVyL2Jqb2EzOTMxIFRBUkdFVD1uZXc+PElNRyBTUkM9aHR0cHM6Ly90ZW1wbGF0ZS5hZmltZy5qcC9iYW5uZXIuZ2lmIEFMVD0iIj48L0E+PEJSPjxCUj4KCgo8Rk9OVCBTSVpFPS0xIENPTE9SPSM5OTk5OTk+44GT44Gu5ZWG5ZOB6Kqs5piO44GvJm5ic3A7PC9GT05UPjxBIEhSRUY9aHR0cHM6Ly9hdWNmYW4uY29tL2F1Y3RlbXAvIFRBUkdFVD1uZXc+PEZPTlQgU0laRT0tMSBDT0xPUj0jMWQ3MmYxPuOCquODvOOCr+OCt+ODp+ODs+iQveacreebuOWgtOOCteOCpOODiOOAjOOCquODvOOCr+ODleOCoeODs+OAjeWHuuWTgeODhuODs+ODl+ODrOODvOODiDwvRk9OVD48L0E+PEZPTlQgU0laRT0tMSBDT0xPUj0jOTk5OTk5PiZuYnNwO+OBp+S9nOaIkOOBleOCjOOBpuOBhOOBvuOBmeOAgjwvRk9OVD48QlI+CjxGT05UIFNJWkU9LTIgQ09MT1I9Izk5OTk5OT5Qb3dlcmVkIGJ5IGF1Y2Zhbi5jb208L0ZPTlQ+PEJSPjxCUj4KCgoKPC9DRU5URVI+Cg==";
+const B64_TIRE_BUL = "PEJSPuKWoOe0lOato+OBruOCueODmuOCouOCv+OCpOODpOOBqOOBquOCiuOBvuOBmeOAggo8QlI+4pag5ZCE5omA5YK344KE5rGa44KM44CB44K/44Kk44Ok44Gu5raI6ICX44O744Gy44Gz5Ymy44KM44CB5aGX6KOF44Gv44GM44KM44Gq44Gp6KaL5Y+X44GR44KJ44KM44G+44GZ44Gu44Gn55S75YOP44Gr44Gm44GU56K66KqN44GP44Gg44GV44GE44CCCgo8QlI+CjxCUj7ilqDjgr/jgqTjg6Tjga7mrovjgormup3jg7vnirbmhYvjgavplqLjgZfjgb7jgZfjgabjga/nlLvlg4/jgavjgabjgZTnorroqo3jgY/jgaDjgZXjgYTjgIIKPEJSPuKWoOODm+OCpOODvOODq+ODu+OCv+OCpOODpOOBq+mWouOBl+OBvuOBl+OBpuOBr+OAgeODkOODqeODs+OCteODvOOChOapn+aisOOBq+OBpuips+e0sOOBquaknOWTgeOCkuihjOOBo+OBn+OCj+OBkeOBp+OBr+OBquOBj+OAgeebruimluOBp+OBruaknOWTgeOBq+OBquOCiuOBvuOBmeOBruOBp+OBguOBj+OBvuOBp+OCguePvueKtuiyqeWjsuODu+imgeaVtOWCmeW+jOOBruS9v+eUqOWJjeaPkOOBqOOBhOOBhuiqjeitmOOBp+OBlOWFpeacreOBhOOBn+OBoOOBkeOCi+aWueOBruOBv+OBlOWFpeacreOCkuOCiOOCjeOBl+OBj+OBiumhmOOBhOOBhOOBn+OBl+OBvuOBmeOAgg==";
+
+function b64utf8(b64){
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder("utf-8").decode(bytes);
+}
+const TEMPLATE = b64utf8(B64TPL);
+const TIRE_BUL = b64utf8(B64_TIRE_BUL);
+
+/* ===== キー ===== */
+const LS_STATE = "yafuoku_listing_v2";
+const LS_TPL   = "yafuoku_listing_tpl_v2";
+const LS_HIST  = "yafuoku_listing_hist_v2";
+const LS_CAND  = "yafuoku_listing_cand_v2";
+const LS_MIG   = "yafuoku_listing_migrated_v2";
+
+/* ===== 型式→メーカー・車種 対応表（自信のないものは車種を空欄） ===== */
+const DEFAULT_MODEL_MAP = {
+  "ZN6":{maker:"トヨタ",car:"86"},
+  "ZC6":{maker:"スバル",car:"BRZ"},
+  "KY51":{maker:"日産",car:"フーガ"},
+  "GGH20":{maker:"トヨタ",car:""},
+  "BRM":{maker:"スバル",car:""},
+  "YA9":{maker:"スバル",car:"エクシーガ"},
+  "L33":{maker:"日産",car:"ティアナ"},
+  "KB1":{maker:"ホンダ",car:"レジェンド"},
+  "KB2":{maker:"ホンダ",car:"レジェンド"},
+  "CZ4A":{maker:"三菱",car:"ランサーエボリューションX"},
+  "NB8C":{maker:"マツダ",car:"ロードスター"},
+  "NA8C":{maker:"マツダ",car:"ロードスター"},
+  "GDA":{maker:"スバル",car:"インプレッサ"},
+  "DC5":{maker:"ホンダ",car:"インテグラ"},
+  "VCH10":{maker:"トヨタ",car:""},
+  "SH9":{maker:"スバル",car:"フォレスター"},
+  "CL1":{maker:"ホンダ",car:""},
+  "ACR30":{maker:"トヨタ",car:"エスティマ"},
+  "ZRE152":{maker:"トヨタ",car:""},
+  "YAM":{maker:"",car:""},
+  "BMM":{maker:"",car:""},
+  "CM2":{maker:"ホンダ",car:"アコード"},
+  "CKV36":{maker:"日産",car:"スカイライン"},
+  "CP3":{maker:"ホンダ",car:""}
+};
+
+const DEFAULT_TYPES = [
+  { id:"tire", name:"タイヤ・ホイール",
+    specFields:[{label:"ホイールメーカー"},{label:"リム幅・J数"},{label:"ホイール品番"},{label:"インチ"},
+      {label:"穴数"},{label:"PCD"},{label:"タイヤサイズ"},{label:"タイヤメーカー"},{label:"製造年"},{label:"本数"}],
+    bullets: TIRE_BUL },
+  { id:"light", name:"灯火類（テール・ヘッドライト等）",
+    specFields:[{label:"品番"},{label:"左右"},{label:"個数"}],
+    bullets:"<BR>■純正の中古部品となります。\n<BR>■レンズ表面の擦り傷、内部のくすみ・水漏れ跡、ツメ折れ・割れなどが見受けられる場合がございますので画像にてご確認ください。\n<BR>■点灯・通電確認は行っておりませんので現状販売となります。" },
+  { id:"interior", name:"内装部品",
+    specFields:[{label:"品番"},{label:"カラー"}],
+    bullets:"<BR>■純正の内装中古部品となります。\n<BR>■擦り傷、日焼け・色あせ、テカリ、ツメ折れ・欠品などが見受けられる場合がございますので画像にてご確認ください。\n<BR>■現状販売となりますのでご理解のうえご入札ください。" },
+  { id:"exterior", name:"外装部品",
+    specFields:[{label:"品番"},{label:"カラー"}],
+    bullets:"<BR>■純正の外装中古部品となります。\n<BR>■飛び石傷、擦り傷、塗装はがれ・色あせ、へこみなどが見受けられる場合がございますので画像にてご確認ください。\n<BR>■現状販売・要点検のうえでのご使用前提でお願いいたします。" },
+  { id:"other", name:"その他汎用",
+    specFields:[{label:"品番"}],
+    bullets:"<BR>■純正の中古部品となります。\n<BR>■傷・汚れ・使用感などが見受けられる場合がございますので画像にてご確認ください。\n<BR>■現状販売となりますのでご理解のうえご入札ください。" }
+];
+
+/* ===== 追加の定型文（複数選択で■ブロックの後ろに挿入） ===== */
+const DEFAULT_EXTRAS = [
+  { id:"charter", name:"チャーター",
+    text:"<BR>■大型商品となっており直接引き取り歓迎しておりますので引き取りに来られる方は事前に取引ナビにてご予約ください。\n（平日、土曜日の１０時から１６時までの対応となります。）\n<BR>■こちらの商品は個人宅への発送は不可となっており荷受人が個人名の場合は営業所止めのみの発送となります。\n<BR>■荷受人が、工場・店舗・会社など法人様宛の場合は直接発送が可能になりますので、法人様宛の場合は法人名義でのご入力をよろしくお願いいたします。\n<BR>■営業所止め発送の場合、到着から３日以内の引き取りをお約束していただきます。\n<BR>■３日を過ぎてしまうとこちらに戻ってきてしまい２重の送料を請求させて頂きますのでくれぐれも期限内でのお引き取りをよろしくお願いいたします。\n<BR>また、北海道・沖縄の方は送料が０円と表示されていますが、発送が難しいのでご入札はお控えください。\n<BR>■離島の方もご入札はお控えください。\n<BR>■千葉県柏市からの出品になります。" },
+  { id:"parts_only", name:"付属部品掲載のみ",
+    text:"<BR>■取付部品は写真に掲載しているものが全てとなります。不足部品につきましてはご用意前提でのご入札をお願いいたします。" },
+  { id:"mekki", name:"メッキ品",
+    text:"<BR>■メッキ部分の映り込みが悪く、傷や擦れなどがわかりにくくなっておりますので、あくまでも傷や擦れはあるものとしてご認識のうえご入札をお願いいたします。" },
+  { id:"steering", name:"ステアリング",
+    text:"<BR>■エアバッグの中身(インフレーター)は自動車リサイクル法に基づき、自社にて取り外して適正処理の後に出品しておりますのでインフレーターは付属しておりません。\n<BR>■エアバッグ取り付けボルトに関しましては付属しておりませんのであらかじめご了承ください。" },
+  { id:"camera", name:"カメラ",
+    text:"<BR>■カメラの映り具合に関しましては、レンズの状態をご確認いただきご判断ください。" },
+  { id:"battery", name:"リモコン・キーレスなど電池利用品",
+    text:"<BR>■出品時は電池の残量がある事を確認しておりますが、在庫保管中に残量が無くなり商品ご到着時に電池残量が無くなっている可能性もございます。あくまでも電池に関しましてはおまけ程度でお付けしているだけですのであらかじめご了承ください。" },
+  { id:"lamp", name:"ランプ類",
+    text:"<BR>■バルブに関しましてはおまけ程度での付属となりますので予めご了承ください。" },
+  { id:"audio", name:"オーディオ・ナビ類",
+    text:"<BR>■シリアルナンバーは【{シリアル}】になります。" }
+];
+
+function defaultTpl(){
+  return {
+    titleFormat:"{管理番号} {メーカー} {車種} {型式} {部品名} {スペック}",
+    prefixes:["B"],
+    lastNumber:9362,
+    models:Object.keys(DEFAULT_MODEL_MAP),
+    modelMap:JSON.parse(JSON.stringify(DEFAULT_MODEL_MAP)),
+    productTypes:JSON.parse(JSON.stringify(DEFAULT_TYPES)),
+    extraBlocks:JSON.parse(JSON.stringify(DEFAULT_EXTRAS))
+  };
+}
+
+/* ===== 状態 ===== */
+let tpl  = loadTpl();
+let cand = loadCand();
+let state = loadState();
+let showAllModels = false;
+const MODEL_SHOW = 8;
+
+function loadTpl(){
+  try{ const d=JSON.parse(localStorage.getItem(LS_TPL)||"null");
+    if(d&&Array.isArray(d.productTypes)&&d.modelMap){
+      if(!Array.isArray(d.extraBlocks)) d.extraBlocks=JSON.parse(JSON.stringify(DEFAULT_EXTRAS));
+      return d;
+    } }catch(e){}
+  return defaultTpl();
+}
+function saveTpl(){ localStorage.setItem(LS_TPL, JSON.stringify(tpl)); }
+function loadCand(){
+  try{ const d=JSON.parse(localStorage.getItem(LS_CAND)||"null"); if(d) return d; }catch(e){}
+  return {};
+}
+function saveCand(){ localStorage.setItem(LS_CAND, JSON.stringify(cand)); }
+function loadState(){
+  try{ const d=JSON.parse(localStorage.getItem(LS_STATE)||"null"); if(d) return normState(d); }catch(e){}
+  return normState({});
+}
+function normState(d){
+  const s = {
+    model:d.model||"", maker:d.maker||"", car:d.car||"",
+    prefix:d.prefix||tpl.prefixes[0]||"B", number:d.number||"",
+    typeId:d.typeId||tpl.productTypes[0].id, partName:d.partName||"",
+    specVals:d.specVals||{},
+    extraIds:Array.isArray(d.extraIds)?d.extraIds:[], serial:d.serial||""
+  };
+  if(!tpl.productTypes.some(t=>t.id===s.typeId)) s.typeId = tpl.productTypes[0].id;
+  return s;
+}
+function saveState(){ localStorage.setItem(LS_STATE, JSON.stringify(state)); }
+
+function currentType(){ return tpl.productTypes.find(t=>t.id===state.typeId) || tpl.productTypes[0]; }
+function specObj(){ if(!state.specVals[state.typeId]) state.specVals[state.typeId]={}; return state.specVals[state.typeId]; }
+
+/* ===== 候補 ===== */
+function getCand(key){ return cand[key] || (cand[key]=[]); }
+function addCand(key,val){ val=(val||"").trim(); if(!val) return; const a=getCand(key);
+  if(!a.includes(val)){ a.push(val); saveCand(); } }
+function delCand(key,val){ const a=getCand(key); const i=a.indexOf(val); if(i>=0){ a.splice(i,1); saveCand(); } }
+
+/* ===== 差し込み ===== */
+function fieldMap(){
+  const spec = currentType().specFields.map(sf=>(specObj()[sf.label]||"").trim()).filter(Boolean).join(" ");
+  return {
+    "{管理番号}": (state.prefix||"") + (state.number||""),
+    "{メーカー}": state.maker.trim(),
+    "{車種}": state.car.trim(),
+    "{型式}": state.model.trim(),
+    "{部品名}": state.partName.trim(),
+    "{スペック}": spec,
+    "{シリアル}": (state.serial||"").trim() || "　　"
+  };
+}
+function fillPlaceholders(str){
+  const f = fieldMap();
+  let s = str;
+  Object.keys(f).forEach(k=> s = s.split(k).join(f[k]));
+  return s;
+}
+function escHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+/* ===== タイトル ===== */
+function buildTitle(){
+  let s = fillPlaceholders(tpl.titleFormat);
+  return s.replace(/[ 　]+/g," ").trim();
+}
+function renderTitle(){
+  $("titleOut").value = buildTitle();
+  updateTitleCount();
+  $("kanriView").textContent = ((state.prefix||"")+(state.number||"")) || "—";
+}
+function updateTitleCount(){
+  const len = [...$("titleOut").value].length;
+  const el = $("titleCount");
+  el.textContent = len + " / 65 文字";
+  el.classList.toggle("over", len>65);
+}
+
+/* ===== HTML ===== */
+function selectedExtras(){
+  return (tpl.extraBlocks||[]).filter(b=>state.extraIds.includes(b.id));
+}
+function buildHtml(){
+  const parts = [currentType().bullets].concat(selectedExtras().map(b=>b.text));
+  const bullets = fillPlaceholders(parts.join("\n"));
+  return TEMPLATE
+    .replace("{{TITLE}}", escHtml(buildTitle()))
+    .replace("{{MODEL}}", escHtml(state.model.trim()))
+    .replace("{{BULLETS}}", bullets);
+}
+const PREVIEW_BANNER = "data:image/svg+xml;utf8," + encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='40'><rect width='100%' height='100%' fill='#e6e6e6'/><text x='12' y='25' font-family='sans-serif' font-size='14' fill='#999'>出品者バナー（プレビュー非表示）</text></svg>");
+function renderPreview(){
+  const prev = buildHtml().split("https://template.afimg.jp/banner.gif").join(PREVIEW_BANNER);
+  $("descPreview").srcdoc = prev;
+}
+
+/* ===== まとめ更新 ===== */
+function regen(){ renderTitle(); renderPreview(); saveState(); }
+
+/* ===== 汎用ピッカー（自由入力＋候補チップ） ===== */
+function renderPicker(mount, opts){
+  mount.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "pick";
+  const row = document.createElement("div");
+  row.className = "row";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = opts.get();
+  if(opts.placeholder) input.placeholder = opts.placeholder;
+  const addBtn = document.createElement("button");
+  addBtn.className = "miniadd"; addBtn.textContent = "候補に追加";
+  row.appendChild(input); row.appendChild(addBtn);
+  const chips = document.createElement("div");
+  chips.className = "chips";
+  wrap.appendChild(row); wrap.appendChild(chips);
+  mount.appendChild(wrap);
+
+  function refreshChips(){
+    chips.innerHTML = "";
+    getCand(opts.candKey).forEach(v=>{
+      const c = document.createElement("span");
+      c.className = "chip" + (opts.get()===v ? " on" : "");
+      const t = document.createElement("span"); t.textContent = v; c.appendChild(t);
+      const x = document.createElement("span"); x.className="x"; x.textContent="×";
+      x.onclick = (e)=>{ e.stopPropagation(); delCand(opts.candKey,v); refreshChips(); };
+      c.appendChild(x);
+      c.onclick = ()=>{ opts.set(v); input.value=v; refreshChips(); regen(); };
+      chips.appendChild(c);
+    });
+  }
+  input.addEventListener("input", ()=>{ opts.set(input.value); refreshChips(); regen(); });
+  input.addEventListener("change", ()=>{ addCand(opts.candKey, input.value); refreshChips(); });
+  if(opts.pad) attachPad(input, opts.pad);
+  addBtn.onclick = ()=>{ addCand(opts.candKey, input.value); refreshChips(); toast("候補に追加しました"); };
+  refreshChips();
+}
+
+/* ===== 型式チップ（最近使った順・8個＋すべて表示） ===== */
+function renderModelChips(){
+  const box = $("modelChips"); box.innerHTML="";
+  const list = showAllModels ? tpl.models : tpl.models.slice(0, MODEL_SHOW);
+  if(!showAllModels && state.model && !list.includes(state.model)) list.push(state.model);
+  list.forEach(m=>{
+    const c=document.createElement("span");
+    c.className="chip"+(state.model===m?" on":"");
+    const t=document.createElement("span"); t.textContent=m; c.appendChild(t);
+    const x=document.createElement("span"); x.className="x"; x.textContent="×";
+    x.onclick=(e)=>{ e.stopPropagation();
+      if(!confirm("型式「"+m+"」を候補から削除しますか？")) return;
+      tpl.models=tpl.models.filter(v=>v!==m); saveTpl(); renderModelChips(); renderMapList(); };
+    c.appendChild(x);
+    c.onclick=()=>selectModel(m);
+    box.appendChild(c);
+  });
+  if(tpl.models.length > MODEL_SHOW){
+    const more=document.createElement("span");
+    more.className="chip more";
+    more.textContent = showAllModels ? "折りたたむ ▴" : "すべて表示（"+tpl.models.length+"） ▾";
+    more.onclick=()=>{ showAllModels=!showAllModels; renderModelChips(); };
+    box.appendChild(more);
+  }
+}
+function selectModel(m){
+  state.model = (state.model===m ? "" : m);
+  if(state.model){
+    const i = tpl.models.indexOf(m);
+    if(i>0){ tpl.models.splice(i,1); tpl.models.unshift(m); saveTpl(); renderMapList(); }
+    const mm = tpl.modelMap[state.model] || {maker:"",car:""};
+    state.maker = mm.maker || "";
+    state.car   = mm.car   || "";
+  }
+  $("maker").value = state.maker;
+  $("car").value = state.car;
+  updateCarWarn();
+  renderModelChips();
+  regen();
+}
+function updateCarWarn(){
+  const show = !!state.model && (!state.car.trim());
+  $("carWarn").classList.toggle("show", show);
+}
+function addModel(){
+  const v=$("modelAdd").value.trim(); if(!v) return;
+  if(!tpl.models.includes(v)){ tpl.models.push(v); if(!tpl.modelMap[v]) tpl.modelMap[v]={maker:"",car:""}; saveTpl(); }
+  $("modelAdd").value=""; renderModelChips(); renderMapList(); selectModel(v); toast("型式を追加しました");
+}
+
+/* ===== イニシャルチップ ===== */
+function renderPrefixChips(){
+  const box=$("prefixChips"); box.innerHTML="";
+  tpl.prefixes.forEach(p=>{
+    const c=document.createElement("span");
+    c.className="chip"+(state.prefix===p?" on":"");
+    const t=document.createElement("span"); t.textContent=p; c.appendChild(t);
+    const x=document.createElement("span"); x.className="x"; x.textContent="×";
+    x.onclick=(e)=>{ e.stopPropagation(); if(tpl.prefixes.length<=1){toast("最低1つは必要です");return;}
+      tpl.prefixes=tpl.prefixes.filter(v=>v!==p); if(state.prefix===p) state.prefix=tpl.prefixes[0];
+      saveTpl(); renderPrefixChips(); $("prefixEdit").value=tpl.prefixes.join(","); regen(); };
+    c.appendChild(x);
+    c.onclick=()=>{ state.prefix=p; renderPrefixChips(); regen(); };
+    box.appendChild(c);
+  });
+}
+function addPrefix(){
+  const v=$("prefixAdd").value.trim(); if(!v) return;
+  if(!tpl.prefixes.includes(v)){ tpl.prefixes.push(v); saveTpl(); }
+  $("prefixAdd").value=""; state.prefix=v; renderPrefixChips(); $("prefixEdit").value=tpl.prefixes.join(","); regen();
+}
+
+/* ===== 商品タイプチップ ===== */
+function renderTypeChips(){
+  const box=$("typeChips"); box.innerHTML="";
+  tpl.productTypes.forEach(t=>{
+    const c=document.createElement("span");
+    c.className="chip"+(state.typeId===t.id?" on":"");
+    c.textContent=t.name;
+    c.onclick=()=>{ state.typeId=t.id; renderTypeChips(); renderSpecFields(); regen(); };
+    box.appendChild(c);
+  });
+}
+
+/* ===== 追加の定型文チップ ===== */
+function renderExtraChips(){
+  const box=$("extraChips"); box.innerHTML="";
+  state.extraIds = state.extraIds.filter(id=>(tpl.extraBlocks||[]).some(b=>b.id===id));
+  (tpl.extraBlocks||[]).forEach(b=>{
+    const on = state.extraIds.includes(b.id);
+    const c=document.createElement("span");
+    c.className="chip"+(on?" on":"");
+    c.textContent=b.name;
+    c.onclick=()=>{
+      if(state.extraIds.includes(b.id)) state.extraIds=state.extraIds.filter(x=>x!==b.id);
+      else state.extraIds.push(b.id);
+      renderExtraChips(); regen();
+    };
+    box.appendChild(c);
+  });
+  updateSerialRow();
+}
+function updateSerialRow(){
+  const need = selectedExtras().some(b=>(b.text||"").includes("{シリアル}"));
+  $("serialRow").style.display = need ? "" : "none";
+}
+
+/* ===== 部品名・スペック ===== */
+function renderPartField(){
+  renderPicker($("partMount"), {
+    candKey:"partName", placeholder:"例：スペアタイヤ テンパー 応急",
+    get:()=>state.partName, set:v=>{ state.partName=v; }
+  });
+}
+function renderSpecFields(){
+  $("specTitle").textContent = "スペック：" + currentType().name;
+  const mount=$("specMount"); mount.innerHTML="";
+  currentType().specFields.forEach(sf=>{
+    const cell=document.createElement("div"); cell.className="cell";
+    const lbl=document.createElement("label"); lbl.className="fld"; lbl.textContent=sf.label;
+    cell.appendChild(lbl);
+    const holder=document.createElement("div"); cell.appendChild(holder);
+    mount.appendChild(cell);
+    renderPicker(holder, {
+      candKey:"spec:"+sf.label, placeholder:"", pad:"alnum",
+      get:()=> (specObj()[sf.label]||""),
+      set:v=>{ specObj()[sf.label]=v; }
+    });
+  });
+}
+
+/* ===== メーカー・車種 手入力 ===== */
+$("maker").addEventListener("input", ()=>{ state.maker=$("maker").value; regen(); });
+$("car").addEventListener("input", ()=>{ state.car=$("car").value; updateCarWarn(); regen(); });
+$("maker").addEventListener("change", ()=>addCand("maker",$("maker").value));
+$("car").addEventListener("change", ()=>addCand("car",$("car").value));
+$("serialInput").addEventListener("input", ()=>{ state.serial=$("serialInput").value; regen(); });
+
+/* ===== 管理番号 ===== */
+$("numInput").addEventListener("input", ()=>{ state.number=$("numInput").value.replace(/[^0-9]/g,""); $("numInput").value=state.number; regen(); });
+$("nextNumBtn").onclick=()=>{
+  const base = tpl.lastNumber || parseInt(state.number||"0",10) || 0;
+  state.number = String(base+1);
+  $("numInput").value = state.number;
+  regen(); toast("次の番号 "+((state.prefix||"")+state.number)+" を入れました");
+};
+
+/* ===== コピー・トースト ===== */
+let toastTimer=null;
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),1900); }
+async function copyText(text,label){
+  if(!text) return;
+  try{ await navigator.clipboard.writeText(text); }
+  catch(e){ const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove(); }
+  toast(label+"をコピーしました");
+}
+$("copyTitle").onclick=()=>copyText($("titleOut").value,"タイトル");
+$("copyHtml").onclick=()=>copyText(buildHtml(),"説明欄HTML");
+$("titleOut").addEventListener("input",()=>{ updateTitleCount(); });
+
+/* ===== 引き出し開閉 ===== */
+function openDrawer(id){ $("backdrop").classList.add("show"); $(id).classList.add("show"); }
+function closeDrawers(){ $("backdrop").classList.remove("show");
+  document.querySelectorAll(".drawer").forEach(d=>d.classList.remove("show")); }
+$("openEditor").onclick=()=>openDrawer("editorDrawer");
+$("openHist").onclick=()=>{ renderHist(); openDrawer("histDrawer"); };
+$("backdrop").onclick=closeDrawers;
+document.querySelectorAll("[data-close]").forEach(b=> b.onclick=closeDrawers);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeDrawers(); hidePad(); } });
+
+/* ===== クリック入力パッド（マウスだけで英数字入力） ===== */
+const PAD_KEYS = {
+  num:[["7","8","9"],["4","5","6"],["1","2","3"],["0","⌫","C"]],
+  alnum:[["1","2","3","4","5","6","7","8","9","0"],
+         ["A","B","C","D","E","F","G","H","I","J"],
+         ["K","L","M","N","O","P","Q","R","S","T"],
+         ["U","V","W","X","Y","Z","-","/","⌫","C"]]
+};
+let padTarget=null;
+function buildPad(mode){
+  const pad=$("padPanel"); pad.innerHTML="";
+  PAD_KEYS[mode].forEach(rowKeys=>{
+    const row=document.createElement("div"); row.className="padrow";
+    rowKeys.forEach(k=>{
+      const b=document.createElement("button");
+      b.type="button"; b.className="padkey"+((k==="⌫"||k==="C")?" fn":""); b.textContent=k;
+      b.onmousedown=e=>e.preventDefault();
+      b.onclick=()=>{
+        if(!padTarget) return;
+        if(k==="⌫") padTarget.value=padTarget.value.slice(0,-1);
+        else if(k==="C") padTarget.value="";
+        else padTarget.value+=k;
+        padTarget.dispatchEvent(new Event("input"));
+      };
+      row.appendChild(b);
+    });
+    pad.appendChild(row);
+  });
+  const close=document.createElement("button"); close.className="padclose"; close.textContent="× 閉じる";
+  close.onmousedown=e=>e.preventDefault();
+  close.onclick=hidePad;
+  pad.appendChild(close);
+}
+function showPad(input,mode){
+  padTarget=input;
+  buildPad(mode);
+  const pad=$("padPanel");
+  pad.style.display="block";
+  const r=input.getBoundingClientRect(), pw=pad.offsetWidth, ph=pad.offsetHeight;
+  const left=Math.max(6, Math.min(r.left, innerWidth-pw-10));
+  const top = (r.bottom+ph+8<innerHeight) ? r.bottom+6 : Math.max(6, r.top-ph-6);
+  pad.style.left=left+"px"; pad.style.top=top+"px";
+}
+function hidePad(){ $("padPanel").style.display="none"; padTarget=null; }
+function attachPad(input,mode){
+  input.addEventListener("focus",()=>showPad(input,mode));
+  input.addEventListener("blur",()=>{ setTimeout(()=>{ if(document.activeElement!==input) hidePad(); },120); });
+}
+
+/* ===== 設定ファイル読込 ===== */
+$("configFile").addEventListener("change", e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    let j; try{ j=JSON.parse(rd.result); }catch(err){ toast("JSONの読み込みに失敗しました"); return; }
+    let addedModels=0;
+    if(Array.isArray(j.model_list)){
+      j.model_list.forEach(m=>{ m=String(m).trim(); if(m&&!tpl.models.includes(m)){ tpl.models.push(m);
+        if(!tpl.modelMap[m]) tpl.modelMap[m]={maker:"",car:""}; addedModels++; } });
+    }
+    if(j.prefix){ const p=String(j.prefix).trim(); if(p&&!tpl.prefixes.includes(p)) tpl.prefixes.push(p); }
+    let nextMsg="";
+    if(j.last_number!=null){
+      const n=parseInt(String(j.last_number).replace(/[^0-9]/g,""),10);
+      if(!isNaN(n)){ tpl.lastNumber=n; state.number=String(n+1); $("numInput").value=state.number;
+        if(j.prefix){ const p=String(j.prefix).trim(); if(tpl.prefixes.includes(p)) state.prefix=p; }
+        nextMsg="／次番号 "+((state.prefix||"")+state.number)+" を提案"; }
+    }
+    saveTpl();
+    renderModelChips(); renderPrefixChips(); renderMapList(); $("prefixEdit").value=tpl.prefixes.join(","); regen();
+    toast("読込完了：型式"+addedModels+"件追加"+nextMsg);
+  };
+  rd.readAsText(file,"utf-8");
+  e.target.value="";
+});
+
+/* ===== テンプレ編集 ===== */
+function renderEditor(){
+  $("titleFormat").value = tpl.titleFormat;
+  $("prefixEdit").value = tpl.prefixes.join(",");
+  renderTypeEditor();
+  renderExtraEditor();
+  renderMapList();
+}
+function renderExtraEditor(){
+  const list=$("extraEditList"); list.innerHTML="";
+  (tpl.extraBlocks||[]).forEach((b,i)=>{
+    const div=document.createElement("div"); div.className="box";
+    div.innerHTML=
+      '<button class="ghost del">削除</button>'+
+      '<label>名前（選択チップに表示）</label><input class="e-name" type="text">'+
+      '<label>本文（HTML可・改行は&lt;BR&gt;・{シリアル}が入力欄の値に置き換わります）</label><textarea class="e-bul"></textarea>';
+    div.querySelector(".e-name").value=b.name;
+    div.querySelector(".e-bul").value=b.text;
+    div.querySelector(".e-name").oninput=e=>{ b.name=e.target.value; saveTpl(); renderExtraChips(); };
+    div.querySelector(".e-bul").oninput=e=>{ b.text=e.target.value; saveTpl(); updateSerialRow(); regen(); };
+    div.querySelector(".del").onclick=()=>{ if(!confirm("定型文「"+b.name+"」を削除しますか？")) return;
+      tpl.extraBlocks.splice(i,1); state.extraIds=state.extraIds.filter(x=>x!==b.id);
+      saveTpl(); renderExtraEditor(); renderExtraChips(); regen(); };
+    list.appendChild(div);
+  });
+}
+$("addExtra").onclick=()=>{ tpl.extraBlocks.push({id:"x"+Date.now(),name:"新しい定型文",text:"<BR>■"});
+  saveTpl(); renderExtraEditor(); renderExtraChips(); };
+$("titleFormat").oninput=e=>{ tpl.titleFormat=e.target.value; saveTpl(); renderTitle(); };
+$("prefixEdit").oninput=e=>{ tpl.prefixes=e.target.value.split(/[,、]/).map(s=>s.trim()).filter(Boolean);
+  if(!tpl.prefixes.length) tpl.prefixes=["B"];
+  if(!tpl.prefixes.includes(state.prefix)) state.prefix=tpl.prefixes[0];
+  saveTpl(); renderPrefixChips(); regen(); };
+
+function renderTypeEditor(){
+  const list=$("typeEditList"); list.innerHTML="";
+  tpl.productTypes.forEach((t,i)=>{
+    const div=document.createElement("div"); div.className="box";
+    div.innerHTML=
+      '<button class="ghost del">削除</button>'+
+      '<label>タイプ名</label><input class="e-name" type="text">'+
+      '<label>スペック項目（カンマ区切り・タイトルの{スペック}にこの順で並びます）</label><input class="e-spec" type="text">'+
+      '<label>商品説明の■ブロック（HTML可・改行は&lt;BR&gt;）</label><textarea class="e-bul"></textarea>'+
+      '<button class="miniadd dup" style="margin-top:6px">このタイプを複製</button>';
+    div.querySelector(".e-name").value=t.name;
+    div.querySelector(".e-spec").value=t.specFields.map(sf=>sf.label).join(",");
+    div.querySelector(".e-bul").value=t.bullets;
+    div.querySelector(".e-name").oninput=e=>{ t.name=e.target.value; saveTpl(); renderTypeChips(); };
+    div.querySelector(".e-spec").oninput=e=>{ t.specFields=e.target.value.split(/[,、]/).map(s=>s.trim()).filter(Boolean).map(l=>({label:l})); saveTpl(); if(state.typeId===t.id) renderSpecFields(); regen(); };
+    div.querySelector(".e-bul").oninput=e=>{ t.bullets=e.target.value; saveTpl(); regen(); };
+    div.querySelector(".del").onclick=()=>{ if(tpl.productTypes.length<=1){toast("最低1つは必要です");return;}
+      if(!confirm("タイプ「"+t.name+"」を削除しますか？")) return;
+      tpl.productTypes.splice(i,1); if(state.typeId===t.id) state.typeId=tpl.productTypes[0].id;
+      saveTpl(); renderTypeChips(); renderTypeEditor(); renderSpecFields(); regen(); };
+    div.querySelector(".dup").onclick=()=>{ const copy=JSON.parse(JSON.stringify(t));
+      copy.id="t"+Date.now(); copy.name=t.name+"（複製）";
+      tpl.productTypes.splice(i+1,0,copy); saveTpl(); renderTypeChips(); renderTypeEditor(); };
+    list.appendChild(div);
+  });
+}
+$("addType").onclick=()=>{ tpl.productTypes.push({id:"t"+Date.now(),name:"新しいタイプ",specFields:[{label:"品番"}],
+  bullets:"<BR>■純正の中古部品となります。"}); saveTpl(); renderTypeChips(); renderTypeEditor(); };
+$("resetTpl").onclick=()=>{ if(!confirm("並び順・商品タイプ・型式対応表をすべて初期状態に戻します。よろしいですか？")) return;
+  tpl=defaultTpl(); if(!tpl.productTypes.some(t=>t.id===state.typeId)) state.typeId=tpl.productTypes[0].id;
+  if(!tpl.prefixes.includes(state.prefix)) state.prefix=tpl.prefixes[0];
+  saveTpl(); renderModelChips(); renderPrefixChips(); renderTypeChips(); renderEditor(); renderSpecFields(); renderExtraChips(); regen();
+  toast("初期状態に戻しました"); };
+
+function renderMapList(){
+  const list=$("mapList"); list.innerHTML="";
+  tpl.models.forEach(code=>{
+    const mm=tpl.modelMap[code]||{maker:"",car:""};
+    const row=document.createElement("div"); row.className="maprow";
+    row.innerHTML='<span class="mcode"></span><input class="mk" type="text" placeholder="メーカー"><input class="cr" type="text" placeholder="車種（空欄可）"><span class="mdel">×</span>';
+    row.querySelector(".mcode").textContent=code;
+    row.querySelector(".mk").value=mm.maker||"";
+    row.querySelector(".cr").value=mm.car||"";
+    row.querySelector(".mk").oninput=e=>{ tpl.modelMap[code]=tpl.modelMap[code]||{maker:"",car:""}; tpl.modelMap[code].maker=e.target.value; saveTpl(); if(state.model===code){state.maker=e.target.value;$("maker").value=e.target.value;regen();} };
+    row.querySelector(".cr").oninput=e=>{ tpl.modelMap[code]=tpl.modelMap[code]||{maker:"",car:""}; tpl.modelMap[code].car=e.target.value; saveTpl(); if(state.model===code){state.car=e.target.value;$("car").value=e.target.value;updateCarWarn();regen();} };
+    row.querySelector(".mdel").onclick=()=>{ if(!confirm("対応表から「"+code+"」を削除しますか？（型式候補からも消えます）")) return;
+      delete tpl.modelMap[code]; tpl.models=tpl.models.filter(v=>v!==code); saveTpl(); renderMapList(); renderModelChips(); };
+    list.appendChild(row);
+  });
+}
+$("mapAddBtn").onclick=()=>{ const code=$("mapAddCode").value.trim(); if(!code) return;
+  tpl.modelMap[code]={maker:$("mapAddMaker").value.trim(),car:$("mapAddCar").value.trim()};
+  if(!tpl.models.includes(code)) tpl.models.push(code);
+  $("mapAddCode").value="";$("mapAddMaker").value="";$("mapAddCar").value="";
+  saveTpl(); renderMapList(); renderModelChips(); toast("対応表に追加しました"); };
+
+/* ===== 履歴 ===== */
+function loadHist(){ try{ const d=JSON.parse(localStorage.getItem(LS_HIST)||"null"); if(Array.isArray(d)) return d; }catch(e){} return []; }
+function saveHistArr(a){ localStorage.setItem(LS_HIST, JSON.stringify(a)); }
+function nowStr(){ const d=new Date(); const z=n=>("0"+n).slice(-2);
+  return d.getFullYear()+"/"+z(d.getMonth()+1)+"/"+z(d.getDate())+" "+z(d.getHours())+":"+z(d.getMinutes()); }
+
+$("saveHist").onclick=()=>{
+  const title=buildTitle();
+  if(!title.trim() && !state.model && !state.partName){ toast("先に内容を入力してください"); return; }
+  const rec={ date:nowStr(), title, html:buildHtml(), model:state.model, maker:state.maker, car:state.car,
+    prefix:state.prefix, number:state.number, typeId:state.typeId, partName:state.partName,
+    specVals:JSON.parse(JSON.stringify(specObj())),
+    extraIds:state.extraIds.slice(), serial:state.serial };
+  const a=loadHist(); a.unshift(rec); if(a.length>300) a.length=300; saveHistArr(a);
+  if(state.number){ tpl.lastNumber=parseInt(state.number,10)||tpl.lastNumber; saveTpl(); }
+  renderHist(); toast("履歴に保存しました");
+};
+function loadRecord(rec){
+  state.model=rec.model||""; state.maker=rec.maker||""; state.car=rec.car||"";
+  state.prefix=rec.prefix||tpl.prefixes[0]; state.number=rec.number||"";
+  state.typeId = tpl.productTypes.some(t=>t.id===rec.typeId) ? rec.typeId : tpl.productTypes[0].id;
+  state.partName=rec.partName||"";
+  state.specVals[state.typeId]=JSON.parse(JSON.stringify(rec.specVals||{}));
+  state.extraIds=Array.isArray(rec.extraIds)?rec.extraIds.slice():[];
+  state.serial=rec.serial||"";
+  if(!tpl.prefixes.includes(state.prefix)){ tpl.prefixes.push(state.prefix); saveTpl(); }
+  $("maker").value=state.maker; $("car").value=state.car; $("numInput").value=state.number;
+  $("serialInput").value=state.serial;
+  renderModelChips(); renderPrefixChips(); renderTypeChips(); renderPartField(); renderSpecFields();
+  renderExtraChips();
+  updateCarWarn(); regen();
+  closeDrawers(); toast("履歴を呼び出しました");
+}
+function renderHist(){
+  const arr=loadHist(); const q=$("histSearch").value.trim().toLowerCase();
+  const list=$("histList"); list.innerHTML="";
+  const shown=arr.filter(r=>{ if(!q) return true;
+    return [r.title,r.maker,r.car,r.model,r.partName].join(" ").toLowerCase().includes(q); });
+  shown.forEach(rec=>{
+    const idx=arr.indexOf(rec);
+    const div=document.createElement("div"); div.className="hist-item";
+    div.innerHTML='<div class="ht"></div><div class="hm"></div>'+
+      '<div class="hb"><button class="primary bt-use">呼び出す</button>'+
+      '<button class="ghost bt-title">タイトルをコピー</button>'+
+      '<button class="ghost bt-html">HTMLをコピー</button>'+
+      '<button class="ghost bt-del">削除</button></div>';
+    div.querySelector(".ht").textContent=rec.title||"(タイトルなし)";
+    div.querySelector(".hm").textContent=rec.date;
+    div.querySelector(".bt-use").onclick=()=>loadRecord(rec);
+    div.querySelector(".bt-title").onclick=()=>copyText(rec.title,"タイトル");
+    div.querySelector(".bt-html").onclick=()=>copyText(rec.html||"","説明欄HTML");
+    div.querySelector(".bt-del").onclick=()=>{ if(!confirm("この履歴を削除しますか？\n"+(rec.title||""))) return;
+      const a=loadHist(); a.splice(idx,1); saveHistArr(a); renderHist(); };
+    list.appendChild(div);
+  });
+  $("histCount").textContent = arr.length ? (q? shown.length+" / "+arr.length+" 件" : "保存済み "+arr.length+" 件") : "まだ履歴はありません";
+}
+$("histSearch").addEventListener("input",renderHist);
+
+/* ===== v1 → v2 移行（履歴のみベストエフォート） ===== */
+function migrateV1(){
+  if(localStorage.getItem(LS_MIG)) return;
+  if(localStorage.getItem(LS_HIST)){ localStorage.setItem(LS_MIG,"1"); return; }
+  try{
+    const old=JSON.parse(localStorage.getItem("yafuoku_listing_hist_v1")||"null");
+    if(Array.isArray(old)&&old.length){
+      const conv=old.map(r=>{
+        const km=(r.kanri||"").match(/^([A-Za-z]*)(\d+)/)||[];
+        return { date:r.date||nowStr(), title:r.title||"", html:"",
+          model:r.katashiki||"", maker:r.maker||"", car:r.model||"",
+          prefix:km[1]||"B", number:km[2]||"", typeId:DEFAULT_TYPES[0].id,
+          partName:r.partName||"", specVals:{} };
+      });
+      saveHistArr(conv);
+    }
+  }catch(e){}
+  localStorage.setItem(LS_MIG,"1");
+}
+
+/* ===== 初期化 ===== */
+$("modelAddBtn").onclick=addModel;
+$("modelAdd").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addModel();} });
+$("prefixAddBtn").onclick=addPrefix;
+$("prefixAdd").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addPrefix();} });
+
+attachPad($("numInput"),"num");
+attachPad($("serialInput"),"alnum");
+attachPad($("modelAdd"),"alnum");
+document.querySelector(".sideScroll").addEventListener("scroll",hidePad);
+
+migrateV1();
+$("maker").value=state.maker; $("car").value=state.car; $("numInput").value=state.number;
+$("serialInput").value=state.serial;
+renderModelChips(); renderPrefixChips(); renderTypeChips();
+renderPartField(); renderSpecFields(); renderExtraChips();
+renderEditor(); renderHist();
+updateCarWarn(); regen();
+</script>
+</body>
+</html>
