@@ -660,8 +660,12 @@ function buildHtmlSpec1(){
   const SEP = '<!-- ============================================================ -->';
   const secHead = t => '<TR><TD COLSPAN=2 BGCOLOR=#3b4252 ALIGN=left><FONT COLOR=#ffffff SIZE=3><B>'+t+'</B></FONT></TD></TR>';
   const rows = spec1Rows().map(r=>
-    '<TR><TD WIDTH=140 BGCOLOR=#eceff4 ALIGN=center><FONT COLOR=#3c3c3c><B>'+r[0]+'</B></FONT></TD>'+
-    '<TD BGCOLOR=#ffffff ALIGN=left><FONT SIZE=3 COLOR=#333333>'+r[1]+'</FONT></TD></TR>').join('\n');
+    '<TR>\n'+
+    '<TD WIDTH=140 BGCOLOR=#eceff4 ALIGN=center><FONT COLOR=#3c3c3c><B>'+r[0]+'</B></FONT></TD>\n'+
+    '<TD BGCOLOR=#ffffff ALIGN=left><FONT SIZE=3 COLOR=#333333>\n'+
+    r[1]+'\n'+
+    '</FONT></TD>\n'+
+    '</TR>').join('\n');
   const bullets = fillPlaceholders(selectedBlockTexts().join("\n"));
   const kanri = (state.prefix||"")+(state.number||"");
   return [
@@ -669,7 +673,9 @@ SEP,
 '<!-- ▼ タイトル帯　※管理番号（'+kanri+'）はこの行と「商品スペック」表の2か所にあります -->',
 SEP,
 '<TABLE WIDTH=100% BORDER=0 CELLSPACING=0 CELLPADDING=12 BGCOLOR=#2e3440>',
-'<TR><TD ALIGN=center><FONT SIZE=4 COLOR=#ffffff><B>'+escHtml(buildTitle())+'</B></FONT></TD></TR>',
+'<TR><TD ALIGN=center><FONT SIZE=4 COLOR=#ffffff><B>',
+escHtml(buildTitle()),
+'</B></FONT></TD></TR>',
 '</TABLE>',
 '<BR>',
 '',
