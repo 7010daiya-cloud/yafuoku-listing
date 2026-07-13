@@ -137,6 +137,29 @@
     transition:opacity .25s;z-index:400;max-width:90%;text-align:center;border:1px solid #333;}
   #toast.show{opacity:1;}
 
+  /* 挿入順リスト */
+  .blockOrder{display:flex;flex-direction:column;gap:4px;}
+  .boRow{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--border);
+    border-radius:7px;padding:3px 7px;font-size:.78rem;}
+  .boRow .bn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .boRow .bk{font-size:.6rem;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0 4px;flex:none;}
+  .boRow button{background:var(--panel3);border:1px solid var(--border);color:#d5d3ce;border-radius:5px;
+    cursor:pointer;font-size:.72rem;padding:1px 6px;line-height:1.4;flex:none;}
+  .boRow button:hover{border-color:var(--accent);color:#fff;}
+  .boEmpty{font-size:.72rem;color:var(--muted);padding:3px 2px;}
+  /* タイトル並び順ピル */
+  .titlePills{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 2px;}
+  .tpill{display:inline-flex;align-items:center;gap:3px;background:var(--panel3);border:1px solid var(--border);
+    border-radius:7px;padding:3px 5px 3px 8px;font-size:.76rem;}
+  .tpill.on{border-color:var(--accent);}
+  .tpill.off{opacity:.4;}
+  .tpill .pn{cursor:pointer;user-select:none;}
+  .tpill.on .pn{color:#fff;font-weight:bold;}
+  .tpill button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:0 2px;line-height:1;}
+  .tpill button:hover{color:var(--accent);}
+  .box select{width:100%;background:var(--panel2);border:1px solid var(--border);color:#fff;
+    border-radius:8px;padding:6px 8px;font:inherit;font-size:.83rem;}
+
   @media(max-width:1100px){ #side{width:350px;min-width:350px;} }
   @media(max-width:860px){
     html,body{height:auto;overflow:auto;}
@@ -187,8 +210,28 @@
       </div>
 
       <div class="sec">
+        <h3>倉庫名称</h3>
+        <div class="chips" id="warehouseChips"></div>
+        <div class="row" style="margin-top:6px">
+          <input type="text" id="warehouseAdd" placeholder="＋倉庫（カタカナ）" style="width:150px;font-size:.78rem">
+          <button class="miniadd" id="warehouseAddBtn">追加</button>
+        </div>
+        <h3 style="margin-top:11px">梱包サイズ</h3>
+        <div class="chips" id="packingChips"></div>
+        <div class="row" style="margin-top:6px">
+          <input type="text" id="packingAdd" placeholder="＋サイズ" style="width:150px;font-size:.78rem">
+          <button class="miniadd" id="packingAddBtn">追加</button>
+        </div>
+      </div>
+
+      <div class="sec">
         <h3>商品タイプ</h3>
         <div class="chips" id="typeChips"></div>
+      </div>
+
+      <div class="sec">
+        <h3>状態（複数選択）</h3>
+        <div class="chips" id="condChips"></div>
       </div>
 
       <div class="sec">
@@ -208,6 +251,11 @@
           <label class="fld">シリアルナンバー（定型文の【　】内に入ります）</label>
           <input type="text" id="serialInput" placeholder="クリックでパッド入力もできます">
         </div>
+      </div>
+
+      <div class="sec">
+        <h3>挿入順（説明欄に入る順番）</h3>
+        <div id="blockOrder" class="blockOrder"></div>
       </div>
 
     </div>
@@ -244,7 +292,9 @@
 <div class="drawer" id="editorDrawer">
   <div class="dhead"><b>⚙ 設定（並び順・商品タイプ・型式対応表／自動保存）</b><button class="close" data-close>×</button></div>
   <div class="dbody">
-    <label class="fld">タイトルの並び順テンプレ　<span class="hint" style="display:inline">使える記号: {管理番号} {メーカー} {車種} {型式} {部品名} {スペック}</span></label>
+    <label class="fld">タイトルの並び順　<span class="hint" style="display:inline">ピルをクリックでON/OFF、選択中の◀▶で左右に移動</span></label>
+    <div id="titlePills" class="titlePills"></div>
+    <label class="fld" style="margin-top:6px">タイトルの並び順テンプレ（上級者向け・直接編集）　<span class="hint" style="display:inline">{管理番号} {倉庫} {梱包} {メーカー} {車種} {型式} {部品名} {スペック}</span></label>
     <input type="text" id="titleFormat">
 
     <label class="fld" style="margin-top:12px">イニシャル候補（カンマ区切り）</label>
@@ -256,6 +306,11 @@
       <button class="ghost" id="addType">＋ タイプを追加</button>
       <button class="ghost" id="resetTpl">すべて初期状態に戻す</button>
     </div>
+
+    <h2>状態（コンディション）ブロック</h2>
+    <div class="hint">商品タイプで自動ONになる状態＋手動で選べる状態。選択したものが■ブロックとして説明欄に入ります。</div>
+    <div id="condEditList"></div>
+    <div class="row2"><button class="ghost" id="addCond">＋ 状態を追加</button></div>
 
     <h2>追加の定型文（選択チップに出ます・■ブロックの後ろに挿入）</h2>
     <div class="hint">{シリアル}と書いた場所には画面のシリアルナンバー欄の値が入ります。</div>
@@ -337,20 +392,20 @@ const DEFAULT_MODEL_MAP = {
 };
 
 const DEFAULT_TYPES = [
-  { id:"tire", name:"タイヤ・ホイール",
+  { id:"tire", name:"タイヤ・ホイール", condId:"cond_tire",
     specFields:[{label:"ホイールメーカー"},{label:"リム幅・J数"},{label:"ホイール品番"},{label:"インチ"},
       {label:"穴数"},{label:"PCD"},{label:"タイヤサイズ"},{label:"タイヤメーカー"},{label:"製造年"},{label:"本数"}],
     bullets: TIRE_BUL },
-  { id:"light", name:"灯火類（テール・ヘッドライト等）",
+  { id:"light", name:"灯火類（テール・ヘッドライト等）", condId:"cond_light",
     specFields:[{label:"品番"},{label:"左右"},{label:"個数"}],
     bullets:"<BR>■純正の中古部品となります。\n<BR>■レンズ表面の擦り傷、内部のくすみ・水漏れ跡、ツメ折れ・割れなどが見受けられる場合がございますので画像にてご確認ください。\n<BR>■点灯・通電確認は行っておりませんので現状販売となります。" },
-  { id:"interior", name:"内装部品",
+  { id:"interior", name:"内装部品", condId:"cond_interior",
     specFields:[{label:"品番"},{label:"カラー"}],
     bullets:"<BR>■純正の内装中古部品となります。\n<BR>■擦り傷、日焼け・色あせ、テカリ、ツメ折れ・欠品などが見受けられる場合がございますので画像にてご確認ください。\n<BR>■現状販売となりますのでご理解のうえご入札ください。" },
-  { id:"exterior", name:"外装部品",
+  { id:"exterior", name:"外装部品", condId:"cond_exterior",
     specFields:[{label:"品番"},{label:"カラー"}],
     bullets:"<BR>■純正の外装中古部品となります。\n<BR>■飛び石傷、擦り傷、塗装はがれ・色あせ、へこみなどが見受けられる場合がございますので画像にてご確認ください。\n<BR>■現状販売・要点検のうえでのご使用前提でお願いいたします。" },
-  { id:"other", name:"その他汎用",
+  { id:"other", name:"その他汎用", condId:"cond_other",
     specFields:[{label:"品番"}],
     bullets:"<BR>■純正の中古部品となります。\n<BR>■傷・汚れ・使用感などが見受けられる場合がございますので画像にてご確認ください。\n<BR>■現状販売となりますのでご理解のうえご入札ください。" }
 ];
@@ -375,16 +430,52 @@ const DEFAULT_EXTRAS = [
     text:"<BR>■シリアルナンバーは【{シリアル}】になります。" }
 ];
 
+/* ===== 倉庫・梱包サイズ ===== */
+const DEFAULT_WAREHOUSES = ["キ"];
+const DEFAULT_PACKINGS = ["A","B","C","D","E","F","G","H","I","J","K","L","S","チャーター"];
+
+/* ===== 状態（コンディション）ブロック ===== */
+const bulOf = id => (DEFAULT_TYPES.find(t=>t.id===id)||{}).bullets || "";
+const DEFAULT_CONDITIONS = [
+  { id:"base", name:"ベース", text:"<BR>■各所傷や汚れなど見受けられますので画像にてご確認ください。" },
+  { id:"cond_tire", name:"タイヤ・ホイール", text: bulOf("tire") },
+  { id:"cond_light", name:"灯火類", text: bulOf("light") },
+  { id:"cond_interior", name:"内装", text: bulOf("interior") },
+  { id:"cond_exterior", name:"外装", text: bulOf("exterior") },
+  { id:"cond_other", name:"汎用", text: bulOf("other") }
+];
+/* condId ↔ productType.id の対応（自動連動・移行に使用） */
+const CONDID_TO_TYPE = { cond_tire:"tire", cond_light:"light", cond_interior:"interior", cond_exterior:"exterior", cond_other:"other" };
+
+/* ===== タイトル並び順ピル ===== */
+const TITLE_TOKENS = ["{管理番号}","{倉庫}","{梱包}","{メーカー}","{車種}","{型式}","{部品名}","{スペック}"];
+
 function defaultTpl(){
   return {
-    titleFormat:"{管理番号} {メーカー} {車種} {型式} {部品名} {スペック}",
+    titleFormat:"{管理番号} {倉庫} {梱包} {メーカー} {車種} {型式} {部品名} {スペック}",
     prefixes:["B"],
     lastNumber:9362,
+    warehouses:DEFAULT_WAREHOUSES.slice(),
+    packings:DEFAULT_PACKINGS.slice(),
     models:Object.keys(DEFAULT_MODEL_MAP),
     modelMap:JSON.parse(JSON.stringify(DEFAULT_MODEL_MAP)),
     productTypes:JSON.parse(JSON.stringify(DEFAULT_TYPES)),
+    conditionBlocks:JSON.parse(JSON.stringify(DEFAULT_CONDITIONS)),
     extraBlocks:JSON.parse(JSON.stringify(DEFAULT_EXTRAS))
   };
+}
+/* 既存 tpl から conditionBlocks を補完（タイプで編集済みの bullets は引き継ぐ） */
+function buildDefaultConditions(productTypes){
+  return DEFAULT_CONDITIONS.map(cb=>{
+    const copy={ id:cb.id, name:cb.name, text:cb.text };
+    const typeId=CONDID_TO_TYPE[cb.id];
+    if(typeId && Array.isArray(productTypes)){
+      const t=productTypes.find(p=>p.id===typeId);
+      const def=DEFAULT_TYPES.find(p=>p.id===typeId);
+      if(t && def && typeof t.bullets==="string" && t.bullets!==def.bullets){ copy.text=t.bullets; }
+    }
+    return copy;
+  });
 }
 
 /* ===== 状態 ===== */
@@ -398,6 +489,20 @@ function loadTpl(){
   try{ const d=JSON.parse(localStorage.getItem(LS_TPL)||"null");
     if(d&&Array.isArray(d.productTypes)&&d.modelMap){
       if(!Array.isArray(d.extraBlocks)) d.extraBlocks=JSON.parse(JSON.stringify(DEFAULT_EXTRAS));
+      if(!Array.isArray(d.warehouses)) d.warehouses=DEFAULT_WAREHOUSES.slice();
+      if(!Array.isArray(d.packings)) d.packings=DEFAULT_PACKINGS.slice();
+      // 商品タイプに condId を補完（既定タイプのみ）
+      d.productTypes.forEach(t=>{
+        if(t.condId===undefined){ const def=DEFAULT_TYPES.find(x=>x.id===t.id); if(def) t.condId=def.condId; }
+      });
+      // 状態ブロックが無ければ補完（編集済み bullets は引き継ぐ）
+      if(!Array.isArray(d.conditionBlocks)) d.conditionBlocks=buildDefaultConditions(d.productTypes);
+      // タイトルに {倉庫}{梱包} が無ければ {管理番号} の後ろへ挿入
+      if(typeof d.titleFormat==="string" && d.titleFormat.indexOf("{倉庫}")<0 && d.titleFormat.indexOf("{梱包}")<0){
+        d.titleFormat = d.titleFormat.indexOf("{管理番号}")>=0
+          ? d.titleFormat.replace("{管理番号}","{管理番号} {倉庫} {梱包}")
+          : "{倉庫} {梱包} "+d.titleFormat;
+      }
       return d;
     } }catch(e){}
   return defaultTpl();
@@ -413,17 +518,50 @@ function loadState(){
   return normState({});
 }
 function normState(d){
+  d = d || {};
   const s = {
     model:d.model||"", maker:d.maker||"", car:d.car||"",
     prefix:d.prefix||tpl.prefixes[0]||"B", number:d.number||"",
+    warehouse:d.warehouse||"", packing:d.packing||"",
     typeId:d.typeId||tpl.productTypes[0].id, partName:d.partName||"",
     specVals:d.specVals||{},
-    extraIds:Array.isArray(d.extraIds)?d.extraIds:[], serial:d.serial||""
+    blocks:[], serial:d.serial||""
   };
   if(!tpl.productTypes.some(t=>t.id===s.typeId)) s.typeId = tpl.productTypes[0].id;
+  const hadBlocks = Array.isArray(d.blocks);
+  if(hadBlocks){
+    s.blocks = d.blocks.filter(b=>b&&(b.k==="cond"||b.k==="extra")&&b.id).map(b=>({k:b.k,id:b.id}));
+  }else{
+    // 旧形式（extraIds のみ）からブロックを組み立て
+    s.blocks = (Array.isArray(d.extraIds)?d.extraIds:[]).map(id=>({k:"extra",id}));
+    // 旧形式・新規は現タイプの状態を先頭に補完（旧挙動＝タイプの本文を表示 を維持）
+    const t=tpl.productTypes.find(x=>x.id===s.typeId)||tpl.productTypes[0];
+    if(t.condId && !s.blocks.some(b=>b.k==="cond"&&b.id===t.condId)) s.blocks.unshift({k:"cond",id:t.condId});
+  }
   return s;
 }
 function saveState(){ localStorage.setItem(LS_STATE, JSON.stringify(state)); }
+
+/* ===== ブロック（状態＋定型文）操作 ===== */
+function isBlockOn(k,id){ return state.blocks.some(b=>b.k===k&&b.id===id); }
+function addBlock(k,id){ if(!isBlockOn(k,id)) state.blocks.push({k,id}); }
+function removeBlock(k,id){ state.blocks=state.blocks.filter(b=>!(b.k===k&&b.id===id)); }
+function toggleBlock(k,id){ if(isBlockOn(k,id)) removeBlock(k,id); else addBlock(k,id); }
+function extraIds(){ return state.blocks.filter(b=>b.k==="extra").map(b=>b.id); }
+function cleanBlocks(){
+  state.blocks=state.blocks.filter(b=> b.k==="cond"
+    ? (tpl.conditionBlocks||[]).some(c=>c.id===b.id)
+    : (tpl.extraBlocks||[]).some(e=>e.id===b.id) );
+}
+function blockText(b){
+  if(b.k==="cond"){ const c=(tpl.conditionBlocks||[]).find(x=>x.id===b.id); return c?c.text:null; }
+  const e=(tpl.extraBlocks||[]).find(x=>x.id===b.id); return e?e.text:null;
+}
+function blockName(b){
+  if(b.k==="cond"){ const c=(tpl.conditionBlocks||[]).find(x=>x.id===b.id); return c?c.name:"(削除済み)"; }
+  const e=(tpl.extraBlocks||[]).find(x=>x.id===b.id); return e?e.name:"(削除済み)";
+}
+function selectedBlockTexts(){ return state.blocks.map(blockText).filter(x=>x!=null); }
 
 function currentType(){ return tpl.productTypes.find(t=>t.id===state.typeId) || tpl.productTypes[0]; }
 function specObj(){ if(!state.specVals[state.typeId]) state.specVals[state.typeId]={}; return state.specVals[state.typeId]; }
@@ -431,7 +569,7 @@ function specObj(){ if(!state.specVals[state.typeId]) state.specVals[state.typeI
 /* ===== 候補 ===== */
 function getCand(key){ return cand[key] || (cand[key]=[]); }
 function addCand(key,val){ val=(val||"").trim(); if(!val) return; const a=getCand(key);
-  if(!a.includes(val)){ a.push(val); saveCand(); } }
+  const i=a.indexOf(val); if(i>=0) a.splice(i,1); a.unshift(val); saveCand(); }
 function delCand(key,val){ const a=getCand(key); const i=a.indexOf(val); if(i>=0){ a.splice(i,1); saveCand(); } }
 
 /* ===== 差し込み ===== */
@@ -439,6 +577,8 @@ function fieldMap(){
   const spec = currentType().specFields.map(sf=>(specObj()[sf.label]||"").trim()).filter(Boolean).join(" ");
   return {
     "{管理番号}": (state.prefix||"") + (state.number||""),
+    "{倉庫}": (state.warehouse||"").trim(),
+    "{梱包}": state.packing==="チャーター" ? "大型商品 引取歓迎" : (state.packing||"").trim(),
     "{メーカー}": state.maker.trim(),
     "{車種}": state.car.trim(),
     "{型式}": state.model.trim(),
@@ -473,11 +613,8 @@ function updateTitleCount(){
 }
 
 /* ===== HTML ===== */
-function selectedExtras(){
-  return (tpl.extraBlocks||[]).filter(b=>state.extraIds.includes(b.id));
-}
 function buildHtml(){
-  const parts = [currentType().bullets].concat(selectedExtras().map(b=>b.text));
+  const parts = selectedBlockTexts();
   const bullets = fillPlaceholders(parts.join("\n"));
   return TEMPLATE
     .replace("{{TITLE}}", escHtml(buildTitle()))
@@ -513,18 +650,37 @@ function renderPicker(mount, opts){
   wrap.appendChild(row); wrap.appendChild(chips);
   mount.appendChild(wrap);
 
+  let manual=false;
   function refreshChips(){
     chips.innerHTML = "";
-    getCand(opts.candKey).forEach(v=>{
+    const arr = getCand(opts.candKey);
+    arr.forEach((v,idx)=>{
       const c = document.createElement("span");
       c.className = "chip" + (opts.get()===v ? " on" : "");
+      if(manual){
+        const lb=document.createElement("span"); lb.className="x"; lb.textContent="◀";
+        lb.onclick=(e)=>{ e.stopPropagation(); if(idx>0){ const tmp=arr[idx-1];arr[idx-1]=arr[idx];arr[idx]=tmp; saveCand(); refreshChips(); } };
+        c.appendChild(lb);
+      }
       const t = document.createElement("span"); t.textContent = v; c.appendChild(t);
-      const x = document.createElement("span"); x.className="x"; x.textContent="×";
-      x.onclick = (e)=>{ e.stopPropagation(); delCand(opts.candKey,v); refreshChips(); };
-      c.appendChild(x);
-      c.onclick = ()=>{ opts.set(v); input.value=v; refreshChips(); regen(); };
+      if(manual){
+        const rb=document.createElement("span"); rb.className="x"; rb.textContent="▶";
+        rb.onclick=(e)=>{ e.stopPropagation(); if(idx<arr.length-1){ const tmp=arr[idx+1];arr[idx+1]=arr[idx];arr[idx]=tmp; saveCand(); refreshChips(); } };
+        c.appendChild(rb);
+      }else{
+        const x = document.createElement("span"); x.className="x"; x.textContent="×";
+        x.onclick = (e)=>{ e.stopPropagation(); delCand(opts.candKey,v); refreshChips(); };
+        c.appendChild(x);
+      }
+      c.onclick = ()=>{ opts.set(v); input.value=v; if(!manual) addCand(opts.candKey,v); refreshChips(); regen(); };
       chips.appendChild(c);
     });
+    if(arr.length>1){
+      const tg=document.createElement("span"); tg.className="chip more"+(manual?" on":"");
+      tg.textContent="⇄"; tg.title="候補を手動で並べ替え";
+      tg.onclick=()=>{ manual=!manual; refreshChips(); };
+      chips.appendChild(tg);
+    }
   }
   input.addEventListener("input", ()=>{ opts.set(input.value); refreshChips(); regen(); });
   input.addEventListener("change", ()=>{ addCand(opts.candKey, input.value); refreshChips(); });
@@ -605,6 +761,57 @@ function addPrefix(){
   $("prefixAdd").value=""; state.prefix=v; renderPrefixChips(); $("prefixEdit").value=tpl.prefixes.join(","); regen();
 }
 
+/* ===== 倉庫名称チップ（単一選択） ===== */
+function renderWarehouseChips(){
+  const box=$("warehouseChips"); box.innerHTML="";
+  tpl.warehouses.forEach(w=>{
+    const c=document.createElement("span");
+    c.className="chip"+(state.warehouse===w?" on":"");
+    const t=document.createElement("span"); t.textContent=w; c.appendChild(t);
+    const x=document.createElement("span"); x.className="x"; x.textContent="×";
+    x.onclick=(e)=>{ e.stopPropagation();
+      tpl.warehouses=tpl.warehouses.filter(v=>v!==w); if(state.warehouse===w) state.warehouse="";
+      saveTpl(); renderWarehouseChips(); regen(); };
+    c.appendChild(x);
+    c.onclick=()=>{ state.warehouse=(state.warehouse===w?"":w); renderWarehouseChips(); regen(); };
+    box.appendChild(c);
+  });
+}
+function addWarehouse(){
+  const v=$("warehouseAdd").value.trim(); if(!v) return;
+  if(!tpl.warehouses.includes(v)){ tpl.warehouses.push(v); saveTpl(); }
+  $("warehouseAdd").value=""; state.warehouse=v; renderWarehouseChips(); regen();
+}
+
+/* ===== 梱包サイズチップ（単一選択・チャーター連動） ===== */
+function renderPackingChips(){
+  const box=$("packingChips"); box.innerHTML="";
+  tpl.packings.forEach(p=>{
+    const c=document.createElement("span");
+    c.className="chip"+(state.packing===p?" on":"");
+    const t=document.createElement("span"); t.textContent=p; c.appendChild(t);
+    const x=document.createElement("span"); x.className="x"; x.textContent="×";
+    x.onclick=(e)=>{ e.stopPropagation();
+      tpl.packings=tpl.packings.filter(v=>v!==p); if(state.packing===p) state.packing="";
+      saveTpl(); renderPackingChips(); regen(); };
+    c.appendChild(x);
+    c.onclick=()=>selectPacking(p);
+    box.appendChild(c);
+  });
+}
+function selectPacking(p){
+  state.packing=(state.packing===p?"":p);
+  if(state.packing==="チャーター" && !isBlockOn("extra","charter") && (tpl.extraBlocks||[]).some(b=>b.id==="charter")){
+    addBlock("extra","charter");
+  }
+  renderPackingChips(); renderExtraChips(); renderBlockOrder(); updateSerialRow(); regen();
+}
+function addPacking(){
+  const v=$("packingAdd").value.trim(); if(!v) return;
+  if(!tpl.packings.includes(v)){ tpl.packings.push(v); saveTpl(); }
+  $("packingAdd").value=""; renderPackingChips(); selectPacking(v);
+}
+
 /* ===== 商品タイプチップ ===== */
 function renderTypeChips(){
   const box=$("typeChips"); box.innerHTML="";
@@ -612,31 +819,75 @@ function renderTypeChips(){
     const c=document.createElement("span");
     c.className="chip"+(state.typeId===t.id?" on":"");
     c.textContent=t.name;
-    c.onclick=()=>{ state.typeId=t.id; renderTypeChips(); renderSpecFields(); regen(); };
+    c.onclick=()=>selectType(t.id);
     box.appendChild(c);
   });
+}
+function selectType(newId){
+  if(newId===state.typeId) return;
+  const old=currentType();
+  state.typeId=newId;
+  const neu=currentType();
+  if(old.condId) removeBlock("cond",old.condId);
+  if(neu.condId && !isBlockOn("cond",neu.condId)) addBlock("cond",neu.condId);
+  renderTypeChips(); renderSpecFields(); renderCondChips(); renderBlockOrder(); updateSerialRow(); regen();
+}
+
+/* ===== 状態（コンディション）チップ（複数選択） ===== */
+function renderCondChips(){
+  const box=$("condChips"); box.innerHTML="";
+  (tpl.conditionBlocks||[]).forEach(cb=>{
+    const on=isBlockOn("cond",cb.id);
+    const c=document.createElement("span");
+    c.className="chip"+(on?" on":"");
+    c.textContent=cb.name;
+    c.onclick=()=>{ toggleBlock("cond",cb.id); renderCondChips(); renderBlockOrder(); updateSerialRow(); regen(); };
+    box.appendChild(c);
+  });
+}
+
+/* ===== 挿入順リスト ===== */
+function renderBlockOrder(){
+  const box=$("blockOrder"); box.innerHTML="";
+  if(!state.blocks.length){
+    const e=document.createElement("div"); e.className="boEmpty";
+    e.textContent="状態・定型文を選ぶとここに順番が出ます"; box.appendChild(e); return;
+  }
+  state.blocks.forEach((b,i)=>{
+    const row=document.createElement("div"); row.className="boRow";
+    const tag=document.createElement("span"); tag.className="bk"; tag.textContent=(b.k==="cond"?"状態":"定型"); row.appendChild(tag);
+    const nm=document.createElement("span"); nm.className="bn"; nm.textContent=blockName(b); row.appendChild(nm);
+    const up=document.createElement("button"); up.textContent="▲"; up.title="上へ"; up.onclick=()=>moveBlock(i,-1); row.appendChild(up);
+    const dn=document.createElement("button"); dn.textContent="▼"; dn.title="下へ"; dn.onclick=()=>moveBlock(i,1); row.appendChild(dn);
+    const rm=document.createElement("button"); rm.textContent="✕"; rm.title="外す";
+    rm.onclick=()=>{ const bb=state.blocks[i]; state.blocks.splice(i,1);
+      renderCondChips(); renderExtraChips(); renderBlockOrder(); updateSerialRow(); regen(); };
+    row.appendChild(rm);
+    box.appendChild(row);
+  });
+}
+function moveBlock(i,dir){
+  const j=i+dir; if(j<0||j>=state.blocks.length) return;
+  const t=state.blocks[i]; state.blocks[i]=state.blocks[j]; state.blocks[j]=t;
+  renderBlockOrder(); regen();
 }
 
 /* ===== 追加の定型文チップ ===== */
 function renderExtraChips(){
   const box=$("extraChips"); box.innerHTML="";
-  state.extraIds = state.extraIds.filter(id=>(tpl.extraBlocks||[]).some(b=>b.id===id));
+  cleanBlocks();
   (tpl.extraBlocks||[]).forEach(b=>{
-    const on = state.extraIds.includes(b.id);
+    const on = isBlockOn("extra",b.id);
     const c=document.createElement("span");
     c.className="chip"+(on?" on":"");
     c.textContent=b.name;
-    c.onclick=()=>{
-      if(state.extraIds.includes(b.id)) state.extraIds=state.extraIds.filter(x=>x!==b.id);
-      else state.extraIds.push(b.id);
-      renderExtraChips(); regen();
-    };
+    c.onclick=()=>{ toggleBlock("extra",b.id); renderExtraChips(); renderBlockOrder(); updateSerialRow(); regen(); };
     box.appendChild(c);
   });
   updateSerialRow();
 }
 function updateSerialRow(){
-  const need = selectedExtras().some(b=>(b.text||"").includes("{シリアル}"));
+  const need = selectedBlockTexts().some(t=>(t||"").includes("{シリアル}"));
   $("serialRow").style.display = need ? "" : "none";
 }
 
@@ -784,11 +1035,71 @@ $("configFile").addEventListener("change", e=>{
 /* ===== テンプレ編集 ===== */
 function renderEditor(){
   $("titleFormat").value = tpl.titleFormat;
+  renderTitlePills();
   $("prefixEdit").value = tpl.prefixes.join(",");
   renderTypeEditor();
+  renderCondEditor();
   renderExtraEditor();
   renderMapList();
 }
+
+/* ===== タイトル並び順ピルエディタ ===== */
+let titlePills=[];
+function pillsFromFormat(){
+  const present=[]; const re=/\{[^}]+\}/g; let m;
+  while((m=re.exec(tpl.titleFormat||""))){ if(TITLE_TOKENS.includes(m[0]) && !present.includes(m[0])) present.push(m[0]); }
+  const order=present.slice();
+  TITLE_TOKENS.forEach(t=>{ if(!order.includes(t)) order.push(t); });
+  const onSet=new Set(present);
+  return order.map(t=>({token:t, on:onSet.has(t)}));
+}
+function formatFromPills(pills){ return pills.filter(p=>p.on).map(p=>p.token).join(" "); }
+function renderTitlePills(){ titlePills=pillsFromFormat(); drawTitlePills(); }
+function drawTitlePills(){
+  const box=$("titlePills"); if(!box) return; box.innerHTML="";
+  titlePills.forEach((p,i)=>{
+    const pill=document.createElement("span"); pill.className="tpill"+(p.on?" on":" off");
+    const nm=document.createElement("span"); nm.className="pn"; nm.textContent=p.token.replace(/[{}]/g,"");
+    nm.onclick=()=>{ p.on=!p.on; commitPills(); };
+    pill.appendChild(nm);
+    if(p.on){
+      const lb=document.createElement("button"); lb.textContent="◀"; lb.title="左へ"; lb.onclick=()=>movePill(i,-1); pill.appendChild(lb);
+      const rb=document.createElement("button"); rb.textContent="▶"; rb.title="右へ"; rb.onclick=()=>movePill(i,1); pill.appendChild(rb);
+    }
+    box.appendChild(pill);
+  });
+}
+function movePill(i,dir){
+  const j=i+dir; if(j<0||j>=titlePills.length) return;
+  const t=titlePills[i]; titlePills[i]=titlePills[j]; titlePills[j]=t; commitPills();
+}
+function commitPills(){
+  tpl.titleFormat=formatFromPills(titlePills);
+  saveTpl(); $("titleFormat").value=tpl.titleFormat; drawTitlePills(); renderTitle();
+}
+
+/* ===== 状態ブロック編集 ===== */
+function renderCondEditor(){
+  const list=$("condEditList"); list.innerHTML="";
+  (tpl.conditionBlocks||[]).forEach((b,i)=>{
+    const div=document.createElement("div"); div.className="box";
+    div.innerHTML=
+      '<button class="ghost del">削除</button>'+
+      '<label>名前（状態チップに表示）</label><input class="e-name" type="text">'+
+      '<label>本文（HTML可・改行は&lt;BR&gt;・{シリアル}が入力欄の値に置き換わります）</label><textarea class="e-bul"></textarea>';
+    div.querySelector(".e-name").value=b.name;
+    div.querySelector(".e-bul").value=b.text;
+    div.querySelector(".e-name").oninput=e=>{ b.name=e.target.value; saveTpl(); renderCondChips(); renderBlockOrder(); renderTypeEditor(); };
+    div.querySelector(".e-bul").oninput=e=>{ b.text=e.target.value; saveTpl(); updateSerialRow(); regen(); };
+    div.querySelector(".del").onclick=()=>{ if(!confirm("状態「"+b.name+"」を削除しますか？")) return;
+      const id=b.id; tpl.conditionBlocks.splice(i,1); removeBlock("cond",id);
+      tpl.productTypes.forEach(t=>{ if(t.condId===id) t.condId=undefined; });
+      saveTpl(); renderCondEditor(); renderTypeEditor(); renderCondChips(); renderBlockOrder(); updateSerialRow(); regen(); };
+    list.appendChild(div);
+  });
+}
+function addCondBlock(){ tpl.conditionBlocks.push({id:"c"+Date.now(),name:"新しい状態",text:"<BR>■"});
+  saveTpl(); renderCondEditor(); renderTypeEditor(); renderCondChips(); }
 function renderExtraEditor(){
   const list=$("extraEditList"); list.innerHTML="";
   (tpl.extraBlocks||[]).forEach((b,i)=>{
@@ -799,17 +1110,18 @@ function renderExtraEditor(){
       '<label>本文（HTML可・改行は&lt;BR&gt;・{シリアル}が入力欄の値に置き換わります）</label><textarea class="e-bul"></textarea>';
     div.querySelector(".e-name").value=b.name;
     div.querySelector(".e-bul").value=b.text;
-    div.querySelector(".e-name").oninput=e=>{ b.name=e.target.value; saveTpl(); renderExtraChips(); };
+    div.querySelector(".e-name").oninput=e=>{ b.name=e.target.value; saveTpl(); renderExtraChips(); renderBlockOrder(); };
     div.querySelector(".e-bul").oninput=e=>{ b.text=e.target.value; saveTpl(); updateSerialRow(); regen(); };
     div.querySelector(".del").onclick=()=>{ if(!confirm("定型文「"+b.name+"」を削除しますか？")) return;
-      tpl.extraBlocks.splice(i,1); state.extraIds=state.extraIds.filter(x=>x!==b.id);
-      saveTpl(); renderExtraEditor(); renderExtraChips(); regen(); };
+      tpl.extraBlocks.splice(i,1); removeBlock("extra",b.id);
+      saveTpl(); renderExtraEditor(); renderExtraChips(); renderBlockOrder(); updateSerialRow(); regen(); };
     list.appendChild(div);
   });
 }
 $("addExtra").onclick=()=>{ tpl.extraBlocks.push({id:"x"+Date.now(),name:"新しい定型文",text:"<BR>■"});
   saveTpl(); renderExtraEditor(); renderExtraChips(); };
-$("titleFormat").oninput=e=>{ tpl.titleFormat=e.target.value; saveTpl(); renderTitle(); };
+$("addCond").onclick=addCondBlock;
+$("titleFormat").oninput=e=>{ tpl.titleFormat=e.target.value; saveTpl(); renderTitlePills(); renderTitle(); };
 $("prefixEdit").oninput=e=>{ tpl.prefixes=e.target.value.split(/[,、]/).map(s=>s.trim()).filter(Boolean);
   if(!tpl.prefixes.length) tpl.prefixes=["B"];
   if(!tpl.prefixes.includes(state.prefix)) state.prefix=tpl.prefixes[0];
@@ -823,14 +1135,17 @@ function renderTypeEditor(){
       '<button class="ghost del">削除</button>'+
       '<label>タイプ名</label><input class="e-name" type="text">'+
       '<label>スペック項目（カンマ区切り・タイトルの{スペック}にこの順で並びます）</label><input class="e-spec" type="text">'+
-      '<label>商品説明の■ブロック（HTML可・改行は&lt;BR&gt;）</label><textarea class="e-bul"></textarea>'+
+      '<label>このタイプで自動ONになる状態チップ</label><select class="e-cond"></select>'+
       '<button class="miniadd dup" style="margin-top:6px">このタイプを複製</button>';
     div.querySelector(".e-name").value=t.name;
     div.querySelector(".e-spec").value=t.specFields.map(sf=>sf.label).join(",");
-    div.querySelector(".e-bul").value=t.bullets;
+    const sel=div.querySelector(".e-cond");
+    const optNone=document.createElement("option"); optNone.value=""; optNone.textContent="（なし）"; sel.appendChild(optNone);
+    (tpl.conditionBlocks||[]).forEach(cb=>{ const o=document.createElement("option"); o.value=cb.id; o.textContent=cb.name; sel.appendChild(o); });
+    sel.value=t.condId||"";
     div.querySelector(".e-name").oninput=e=>{ t.name=e.target.value; saveTpl(); renderTypeChips(); };
     div.querySelector(".e-spec").oninput=e=>{ t.specFields=e.target.value.split(/[,、]/).map(s=>s.trim()).filter(Boolean).map(l=>({label:l})); saveTpl(); if(state.typeId===t.id) renderSpecFields(); regen(); };
-    div.querySelector(".e-bul").oninput=e=>{ t.bullets=e.target.value; saveTpl(); regen(); };
+    sel.onchange=e=>{ t.condId=e.target.value||undefined; saveTpl(); };
     div.querySelector(".del").onclick=()=>{ if(tpl.productTypes.length<=1){toast("最低1つは必要です");return;}
       if(!confirm("タイプ「"+t.name+"」を削除しますか？")) return;
       tpl.productTypes.splice(i,1); if(state.typeId===t.id) state.typeId=tpl.productTypes[0].id;
@@ -846,7 +1161,11 @@ $("addType").onclick=()=>{ tpl.productTypes.push({id:"t"+Date.now(),name:"新し
 $("resetTpl").onclick=()=>{ if(!confirm("並び順・商品タイプ・型式対応表をすべて初期状態に戻します。よろしいですか？")) return;
   tpl=defaultTpl(); if(!tpl.productTypes.some(t=>t.id===state.typeId)) state.typeId=tpl.productTypes[0].id;
   if(!tpl.prefixes.includes(state.prefix)) state.prefix=tpl.prefixes[0];
-  saveTpl(); renderModelChips(); renderPrefixChips(); renderTypeChips(); renderEditor(); renderSpecFields(); renderExtraChips(); regen();
+  if(!tpl.warehouses.includes(state.warehouse)) state.warehouse="";
+  if(!tpl.packings.includes(state.packing)) state.packing="";
+  cleanBlocks();
+  saveTpl(); renderModelChips(); renderPrefixChips(); renderWarehouseChips(); renderPackingChips();
+  renderTypeChips(); renderCondChips(); renderEditor(); renderSpecFields(); renderExtraChips(); renderBlockOrder(); regen();
   toast("初期状態に戻しました"); };
 
 function renderMapList(){
@@ -881,9 +1200,10 @@ $("saveHist").onclick=()=>{
   const title=buildTitle();
   if(!title.trim() && !state.model && !state.partName){ toast("先に内容を入力してください"); return; }
   const rec={ date:nowStr(), title, html:buildHtml(), model:state.model, maker:state.maker, car:state.car,
-    prefix:state.prefix, number:state.number, typeId:state.typeId, partName:state.partName,
+    prefix:state.prefix, number:state.number, warehouse:state.warehouse, packing:state.packing,
+    typeId:state.typeId, partName:state.partName,
     specVals:JSON.parse(JSON.stringify(specObj())),
-    extraIds:state.extraIds.slice(), serial:state.serial };
+    blocks:state.blocks.map(b=>({k:b.k,id:b.id})), extraIds:extraIds(), serial:state.serial };
   const a=loadHist(); a.unshift(rec); if(a.length>300) a.length=300; saveHistArr(a);
   if(state.number){ tpl.lastNumber=parseInt(state.number,10)||tpl.lastNumber; saveTpl(); }
   renderHist(); toast("履歴に保存しました");
@@ -891,16 +1211,25 @@ $("saveHist").onclick=()=>{
 function loadRecord(rec){
   state.model=rec.model||""; state.maker=rec.maker||""; state.car=rec.car||"";
   state.prefix=rec.prefix||tpl.prefixes[0]; state.number=rec.number||"";
+  state.warehouse=rec.warehouse||""; state.packing=rec.packing||"";
   state.typeId = tpl.productTypes.some(t=>t.id===rec.typeId) ? rec.typeId : tpl.productTypes[0].id;
   state.partName=rec.partName||"";
   state.specVals[state.typeId]=JSON.parse(JSON.stringify(rec.specVals||{}));
-  state.extraIds=Array.isArray(rec.extraIds)?rec.extraIds.slice():[];
+  if(Array.isArray(rec.blocks)){
+    state.blocks=rec.blocks.filter(b=>b&&(b.k==="cond"||b.k==="extra")&&b.id).map(b=>({k:b.k,id:b.id}));
+  }else{
+    state.blocks=(Array.isArray(rec.extraIds)?rec.extraIds:[]).map(id=>({k:"extra",id}));
+  }
+  cleanBlocks();
   state.serial=rec.serial||"";
   if(!tpl.prefixes.includes(state.prefix)){ tpl.prefixes.push(state.prefix); saveTpl(); }
+  if(state.warehouse && !tpl.warehouses.includes(state.warehouse)){ tpl.warehouses.push(state.warehouse); saveTpl(); }
+  if(state.packing && !tpl.packings.includes(state.packing)){ tpl.packings.push(state.packing); saveTpl(); }
   $("maker").value=state.maker; $("car").value=state.car; $("numInput").value=state.number;
   $("serialInput").value=state.serial;
-  renderModelChips(); renderPrefixChips(); renderTypeChips(); renderPartField(); renderSpecFields();
-  renderExtraChips();
+  renderModelChips(); renderPrefixChips(); renderWarehouseChips(); renderPackingChips();
+  renderTypeChips(); renderPartField(); renderSpecFields();
+  renderCondChips(); renderExtraChips(); renderBlockOrder();
   updateCarWarn(); regen();
   closeDrawers(); toast("履歴を呼び出しました");
 }
@@ -955,6 +1284,10 @@ $("modelAddBtn").onclick=addModel;
 $("modelAdd").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addModel();} });
 $("prefixAddBtn").onclick=addPrefix;
 $("prefixAdd").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addPrefix();} });
+$("warehouseAddBtn").onclick=addWarehouse;
+$("warehouseAdd").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addWarehouse();} });
+$("packingAddBtn").onclick=addPacking;
+$("packingAdd").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addPacking();} });
 
 attachPad($("numInput"),"num");
 attachPad($("serialInput"),"alnum");
@@ -964,8 +1297,9 @@ document.querySelector(".sideScroll").addEventListener("scroll",hidePad);
 migrateV1();
 $("maker").value=state.maker; $("car").value=state.car; $("numInput").value=state.number;
 $("serialInput").value=state.serial;
-renderModelChips(); renderPrefixChips(); renderTypeChips();
-renderPartField(); renderSpecFields(); renderExtraChips();
+renderModelChips(); renderPrefixChips(); renderWarehouseChips(); renderPackingChips();
+renderTypeChips(); renderCondChips();
+renderPartField(); renderSpecFields(); renderExtraChips(); renderBlockOrder();
 renderEditor(); renderHist();
 updateCarWarn(); regen();
 </script>
