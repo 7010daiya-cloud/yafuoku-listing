@@ -37,7 +37,7 @@
   .chip.more{color:var(--muted);border-style:dashed;}
   .chip .x{font-size:.7rem;opacity:.55;cursor:pointer;}
   .chip .x:hover{opacity:1;}
-  input[type=text],textarea{width:100%;background:var(--panel2);border:1px solid var(--border);
+  input[type=text],textarea,select{width:100%;background:var(--panel2);border:1px solid var(--border);
     color:#fff;border-radius:8px;padding:7px 10px;font:inherit;font-size:.88rem;}
   input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;}
   textarea{resize:vertical;}
@@ -292,7 +292,14 @@
 <div class="drawer" id="editorDrawer">
   <div class="dhead"><b>⚙ 設定（並び順・商品タイプ・型式対応表／自動保存）</b><button class="close" data-close>×</button></div>
   <div class="dbody">
-    <label class="fld">タイトルの並び順　<span class="hint" style="display:inline">ピルをクリックでON/OFF、選択中の◀▶で左右に移動</span></label>
+    <label class="fld">説明欄のデザイン</label>
+    <select id="descTplSel">
+      <option value="aucfan">現行（aucfanテンプレ・PC向け800px固定）</option>
+      <option value="spec1">スペック先出し（新・スマホ幅対応）</option>
+    </select>
+    <div class="hint">「スペック先出し」はタイトル帯→スペック表→状態→発送→注意事項の順。入力済みの項目から表を自動で組み立てます。</div>
+
+    <label class="fld" style="margin-top:14px">タイトルの並び順　<span class="hint" style="display:inline">ピルをクリックでON/OFF、選択中の◀▶で左右に移動</span></label>
     <div id="titlePills" class="titlePills"></div>
     <label class="fld" style="margin-top:6px">タイトルの並び順テンプレ（上級者向け・直接編集）　<span class="hint" style="display:inline">{管理番号} {倉庫} {梱包} {メーカー} {車種} {型式} {部品名} {スペック}</span></label>
     <input type="text" id="titleFormat">
@@ -453,6 +460,7 @@ const TITLE_TOKENS = ["{管理番号}","{倉庫}","{梱包}","{メーカー}","{
 function defaultTpl(){
   return {
     titleFormat:"{管理番号} {倉庫} {梱包} {メーカー} {車種} {型式} {部品名} {スペック}",
+    descTemplate:"aucfan",
     prefixes:["B"],
     lastNumber:9362,
     warehouses:DEFAULT_WAREHOUSES.slice(),
@@ -489,6 +497,7 @@ function loadTpl(){
   try{ const d=JSON.parse(localStorage.getItem(LS_TPL)||"null");
     if(d&&Array.isArray(d.productTypes)&&d.modelMap){
       if(!Array.isArray(d.extraBlocks)) d.extraBlocks=JSON.parse(JSON.stringify(DEFAULT_EXTRAS));
+      if(!d.descTemplate) d.descTemplate="aucfan";
       if(!Array.isArray(d.warehouses)) d.warehouses=DEFAULT_WAREHOUSES.slice();
       if(!Array.isArray(d.packings)) d.packings=DEFAULT_PACKINGS.slice();
       // 商品タイプに condId を補完（既定タイプのみ）
@@ -614,12 +623,71 @@ function updateTitleCount(){
 
 /* ===== HTML ===== */
 function buildHtml(){
+  if(tpl.descTemplate==="spec1") return buildHtmlSpec1();
   const parts = selectedBlockTexts();
   const bullets = fillPlaceholders(parts.join("\n"));
   return TEMPLATE
     .replace("{{TITLE}}", escHtml(buildTitle()))
     .replace("{{MODEL}}", escHtml(state.model.trim()))
     .replace("{{BULLETS}}", bullets);
+}
+
+/* ===== 新デザイン「スペック先出し」（幅100%・スマホ対応・ヤフオク可のタグのみ） ===== */
+function spec1Rows(){
+  const rows=[];
+  const kanri=(state.prefix||"")+(state.number||"");
+  if(kanri) rows.push(["管理番号",escHtml(kanri)]);
+  const car=[state.maker.trim(),state.car.trim()].filter(Boolean).join(" ");
+  if(car||state.model.trim()){
+    let v=escHtml(car);
+    if(state.model.trim()) v+=(v?"　":"")+"<STRONG>【"+escHtml(state.model.trim())+"】</STRONG>（取り外し車両）";
+    rows.push(["適合車種",v]);
+  }
+  if(state.partName.trim()) rows.push(["部品名",escHtml(state.partName.trim())]);
+  currentType().specFields.forEach(sf=>{
+    const v=(specObj()[sf.label]||"").trim();
+    if(v) rows.push([escHtml(sf.label),escHtml(v)]);
+  });
+  rows.push(["状態","中古・現状品（詳細は下記）"]);
+  if(state.packing){
+    rows.push(["梱包サイズ", state.packing==="チャーター"
+      ? "チャーター（大型商品・直接引き取り歓迎）"
+      : "<B>"+escHtml(state.packing)+"</B>（送料の目安にお使いください）"]);
+  }
+  return rows;
+}
+function buildHtmlSpec1(){
+  const secHead = t => '<TR><TD COLSPAN=2 BGCOLOR=#3b4252 ALIGN=left><FONT COLOR=#ffffff SIZE=3><B>'+t+'</B></FONT></TD></TR>';
+  const rows = spec1Rows().map(r=>
+    '<TR><TD WIDTH=140 BGCOLOR=#eceff4 ALIGN=center><FONT COLOR=#3c3c3c><B>'+r[0]+'</B></FONT></TD>'+
+    '<TD BGCOLOR=#ffffff ALIGN=left><FONT SIZE=3 COLOR=#333333>'+r[1]+'</FONT></TD></TR>').join('\n');
+  const bullets = fillPlaceholders(selectedBlockTexts().join("\n"));
+  const box = inner => '<TABLE WIDTH=100% BORDER=0 CELLSPACING=1 CELLPADDING=8 BGCOLOR=#c8ccd4>\n'+inner+'\n</TABLE>\n<BR>\n';
+  const body1 = inner => '<TR><TD COLSPAN=2 BGCOLOR=#ffffff ALIGN=left><FONT SIZE=3 COLOR=#525252>\n'+inner+'\n</FONT></TD></TR>';
+  return [
+'<TABLE WIDTH=100% BORDER=0 CELLSPACING=0 CELLPADDING=12 BGCOLOR=#2e3440>',
+'<TR><TD ALIGN=center><FONT SIZE=4 COLOR=#ffffff><B>'+escHtml(buildTitle())+'</B></FONT></TD></TR>',
+'</TABLE>',
+'<BR>',
+box(secHead('■ 商品スペック')+'\n'+rows),
+box(secHead('■ 商品の状態')+'\n'+body1(bullets)),
+box(secHead('■ 発送・お引き取り')+'\n'+body1(
+'◆落札後24時間以内のご連絡・3〜4日以内の発送を心がけています<BR>\n'+
+'◆定形外郵便・ゆうメール・ヤマト運輸・佐川急便・ゆうパック・レターパック各種<BR>\n'+
+'◆千葉県柏市からの出品・直接引き取り歓迎（平日・土曜 10〜16時、要予約）')),
+'<TABLE WIDTH=100% BORDER=0 CELLSPACING=1 CELLPADDING=8 BGCOLOR=#c8ccd4>',
+'<TR><TD BGCOLOR=#e5c07b ALIGN=left><FONT COLOR=#3c3c3c SIZE=3><B>！ 入札前に必ずご確認ください</B></FONT></TD></TR>',
+'<TR><TD BGCOLOR=#fffdf5 ALIGN=left><FONT SIZE=2 COLOR=#525252>',
+'◆商品は画像のものが全てです。画像にないものは一切付属しません<BR>',
+'◆基本的に画像にてご判断いただき、ノークレーム・ノーリターンでお願いいたします<BR>',
+'◆落札後のキャンセルはお受けできません<BR>',
+'◆ご不明な点はオークション終了前にご質問ください',
+'</FONT></TD></TR>',
+'</TABLE>',
+'<BR>',
+'<CENTER><A HREF=https://auctions.yahoo.co.jp/seller/bjoa3931 TARGET=new><IMG SRC=https://template.afimg.jp/banner.gif ALT=""></A></CENTER>',
+''
+  ].join('\n');
 }
 const PREVIEW_BANNER = "data:image/svg+xml;utf8," + encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='40'><rect width='100%' height='100%' fill='#e6e6e6'/><text x='12' y='25' font-family='sans-serif' font-size='14' fill='#999'>出品者バナー（プレビュー非表示）</text></svg>");
@@ -1034,6 +1102,7 @@ $("configFile").addEventListener("change", e=>{
 
 /* ===== テンプレ編集 ===== */
 function renderEditor(){
+  $("descTplSel").value = tpl.descTemplate || "aucfan";
   $("titleFormat").value = tpl.titleFormat;
   renderTitlePills();
   $("prefixEdit").value = tpl.prefixes.join(",");
@@ -1042,6 +1111,8 @@ function renderEditor(){
   renderExtraEditor();
   renderMapList();
 }
+$("descTplSel").onchange=e=>{ tpl.descTemplate=e.target.value; saveTpl(); regen();
+  toast(e.target.value==="spec1" ? "説明欄を「スペック先出し」デザインに切り替えました" : "説明欄を現行テンプレに戻しました"); };
 
 /* ===== タイトル並び順ピルエディタ ===== */
 let titlePills=[];
