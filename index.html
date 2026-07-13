@@ -657,24 +657,58 @@ function spec1Rows(){
   return rows;
 }
 function buildHtmlSpec1(){
+  const SEP = '<!-- ============================================================ -->';
   const secHead = t => '<TR><TD COLSPAN=2 BGCOLOR=#3b4252 ALIGN=left><FONT COLOR=#ffffff SIZE=3><B>'+t+'</B></FONT></TD></TR>';
   const rows = spec1Rows().map(r=>
     '<TR><TD WIDTH=140 BGCOLOR=#eceff4 ALIGN=center><FONT COLOR=#3c3c3c><B>'+r[0]+'</B></FONT></TD>'+
     '<TD BGCOLOR=#ffffff ALIGN=left><FONT SIZE=3 COLOR=#333333>'+r[1]+'</FONT></TD></TR>').join('\n');
   const bullets = fillPlaceholders(selectedBlockTexts().join("\n"));
-  const box = inner => '<TABLE WIDTH=100% BORDER=0 CELLSPACING=1 CELLPADDING=8 BGCOLOR=#c8ccd4>\n'+inner+'\n</TABLE>\n<BR>\n';
-  const body1 = inner => '<TR><TD COLSPAN=2 BGCOLOR=#ffffff ALIGN=left><FONT SIZE=3 COLOR=#525252>\n'+inner+'\n</FONT></TD></TR>';
+  const kanri = (state.prefix||"")+(state.number||"");
   return [
+SEP,
+'<!-- ▼ タイトル帯　※管理番号（'+kanri+'）はこの行と「商品スペック」表の2か所にあります -->',
+SEP,
 '<TABLE WIDTH=100% BORDER=0 CELLSPACING=0 CELLPADDING=12 BGCOLOR=#2e3440>',
 '<TR><TD ALIGN=center><FONT SIZE=4 COLOR=#ffffff><B>'+escHtml(buildTitle())+'</B></FONT></TD></TR>',
 '</TABLE>',
 '<BR>',
-box(secHead('■ 商品スペック')+'\n'+rows),
-box(secHead('■ 商品の状態')+'\n'+body1(bullets)),
-box(secHead('■ 発送・お引き取り')+'\n'+body1(
-'◆落札後24時間以内のご連絡・3〜4日以内の発送を心がけています<BR>\n'+
-'◆定形外郵便・ゆうメール・ヤマト運輸・佐川急便・ゆうパック・レターパック各種<BR>\n'+
-'◆千葉県柏市からの出品・直接引き取り歓迎（平日・土曜 10〜16時、要予約）')),
+'',
+SEP,
+'<!-- ▼ 商品スペック（1行＝1項目。行ごと消したり書き替えたりできます） -->',
+SEP,
+'<TABLE WIDTH=100% BORDER=0 CELLSPACING=1 CELLPADDING=8 BGCOLOR=#c8ccd4>',
+secHead('■ 商品スペック'),
+rows,
+'</TABLE>',
+'<BR>',
+'',
+SEP,
+'<!-- ▼ 商品の状態 -->',
+SEP,
+'<TABLE WIDTH=100% BORDER=0 CELLSPACING=1 CELLPADDING=8 BGCOLOR=#c8ccd4>',
+secHead('■ 商品の状態'),
+'<TR><TD COLSPAN=2 BGCOLOR=#ffffff ALIGN=left><FONT SIZE=3 COLOR=#525252>',
+bullets,
+'</FONT></TD></TR>',
+'</TABLE>',
+'<BR>',
+'',
+SEP,
+'<!-- ▼ 発送・お引き取り -->',
+SEP,
+'<TABLE WIDTH=100% BORDER=0 CELLSPACING=1 CELLPADDING=8 BGCOLOR=#c8ccd4>',
+secHead('■ 発送・お引き取り'),
+'<TR><TD COLSPAN=2 BGCOLOR=#ffffff ALIGN=left><FONT SIZE=3 COLOR=#525252>',
+'◆落札後24時間以内のご連絡・3〜4日以内の発送を心がけています<BR>',
+'◆定形外郵便・ゆうメール・ヤマト運輸・佐川急便・ゆうパック・レターパック各種<BR>',
+'◆千葉県柏市からの出品・直接引き取り歓迎（平日・土曜 10〜16時、要予約）',
+'</FONT></TD></TR>',
+'</TABLE>',
+'<BR>',
+'',
+SEP,
+'<!-- ▼ 注意事項 -->',
+SEP,
 '<TABLE WIDTH=100% BORDER=0 CELLSPACING=1 CELLPADDING=8 BGCOLOR=#c8ccd4>',
 '<TR><TD BGCOLOR=#e5c07b ALIGN=left><FONT COLOR=#3c3c3c SIZE=3><B>！ 入札前に必ずご確認ください</B></FONT></TD></TR>',
 '<TR><TD BGCOLOR=#fffdf5 ALIGN=left><FONT SIZE=2 COLOR=#525252>',
@@ -685,6 +719,10 @@ box(secHead('■ 発送・お引き取り')+'\n'+body1(
 '</FONT></TD></TR>',
 '</TABLE>',
 '<BR>',
+'',
+SEP,
+'<!-- ▼ 出品者バナー -->',
+SEP,
 '<CENTER><A HREF=https://auctions.yahoo.co.jp/seller/bjoa3931 TARGET=new><IMG SRC=https://template.afimg.jp/banner.gif ALT=""></A></CENTER>',
 ''
   ].join('\n');
