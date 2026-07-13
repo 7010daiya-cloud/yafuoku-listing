@@ -330,6 +330,20 @@
     <div class="row" style="margin-top:8px;max-width:480px">
       <input type="text" id="mapAddCode" placeholder="型式"><input type="text" id="mapAddMaker" placeholder="メーカー"><input type="text" id="mapAddCar" placeholder="車種"><button class="miniadd" id="mapAddBtn">＋</button>
     </div>
+
+    <h2>☁ クラウド同期（複数PCで履歴・型式・テンプレを共有）</h2>
+    <div class="hint">
+      GitHubの無料機能（非公開Gist）にデータを保存して、どのPCでも同じ内容にします。
+      <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=yafuoku-listing-sync" target="_blank" rel="noopener">こちら（トークン作成ページ）</a>を開き、
+      有効期限を選んで「Generate token」→ 表示された ghp_ で始まる文字列を下に貼り付けてください（各PCで1回だけ）。
+      ※共有PCでは設定しないでください。
+    </div>
+    <input type="password" id="ghToken" placeholder="ghp_ で始まるトークンを貼り付け" autocomplete="off">
+    <div class="row2">
+      <button class="ghost" id="syncNowBtn">☁ 今すぐ同期</button>
+      <label style="font-size:.78rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="syncAuto">自動同期（起動時＋変更の15秒後）</label>
+    </div>
+    <div class="hint" id="syncStatus">未設定：トークンを入力してください</div>
   </div>
 </div>
 
@@ -516,12 +530,12 @@ function loadTpl(){
     } }catch(e){}
   return defaultTpl();
 }
-function saveTpl(){ localStorage.setItem(LS_TPL, JSON.stringify(tpl)); }
+function saveTpl(){ localStorage.setItem(LS_TPL, JSON.stringify(tpl)); markDirty("tpl"); }
 function loadCand(){
   try{ const d=JSON.parse(localStorage.getItem(LS_CAND)||"null"); if(d) return d; }catch(e){}
   return {};
 }
-function saveCand(){ localStorage.setItem(LS_CAND, JSON.stringify(cand)); }
+function saveCand(){ localStorage.setItem(LS_CAND, JSON.stringify(cand)); markDirty("cand"); }
 function loadState(){
   try{ const d=JSON.parse(localStorage.getItem(LS_STATE)||"null"); if(d) return normState(d); }catch(e){}
   return normState({});
@@ -1307,7 +1321,7 @@ $("mapAddBtn").onclick=()=>{ const code=$("mapAddCode").value.trim(); if(!code) 
 
 /* ===== 履歴 ===== */
 function loadHist(){ try{ const d=JSON.parse(localStorage.getItem(LS_HIST)||"null"); if(Array.isArray(d)) return d; }catch(e){} return []; }
-function saveHistArr(a){ localStorage.setItem(LS_HIST, JSON.stringify(a)); }
+function saveHistArr(a){ localStorage.setItem(LS_HIST, JSON.stringify(a)); markDirty("hist"); }
 function nowStr(){ const d=new Date(); const z=n=>("0"+n).slice(-2);
   return d.getFullYear()+"/"+z(d.getMonth()+1)+"/"+z(d.getDate())+" "+z(d.getHours())+":"+z(d.getMinutes()); }
 
@@ -1394,6 +1408,137 @@ function migrateV1(){
   localStorage.setItem(LS_MIG,"1");
 }
 
+/* ===== クラウド同期（GitHub Gist・無料） =====
+   仕組み：非公開Gistにデータ(JSON)を1ファイル保存。同期時は
+   「取得 → ローカルと合体(マージ) → 画面反映 → 保存」の順で行うので
+   複数PCで増えた履歴・型式は消えずに合体される。 */
+const LS_SYNC = "yafuoku_listing_sync_v1";
+const SYNC_FILE = "yafuoku-listing-data.json";
+let sync = (function(){ try{ return JSON.parse(localStorage.getItem(LS_SYNC)||"null")||{}; }catch(e){ return {}; } })();
+if(!sync.stamps) sync.stamps = {};
+function saveSync(){ localStorage.setItem(LS_SYNC, JSON.stringify(sync)); }
+
+let syncTimer=null, syncing=false, applyingRemote=false;
+function markDirty(kind){
+  if(applyingRemote) return;
+  sync.stamps[kind] = Date.now();
+  saveSync();
+  if(sync.token && sync.auto){
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function(){ syncNow(true); }, 15000);
+  }
+}
+function syncStatus(msg){ const el=$("syncStatus"); if(el) el.textContent = msg; }
+
+async function ghApi(path, opts){
+  opts = opts || {};
+  const headers = Object.assign({
+    "Authorization": "Bearer " + sync.token,
+    "Accept": "application/vnd.github+json"
+  }, opts.headers||{});
+  const res = await fetch("https://api.github.com"+path, Object.assign({}, opts, { headers }));
+  if(!res.ok){
+    if(res.status===401) throw new Error("トークンが無効です（作り直して貼り直してください）");
+    if(res.status===404) throw new Error("404");
+    throw new Error("GitHub APIエラー "+res.status);
+  }
+  return res.json();
+}
+async function findOrCreateGist(payloadStr){
+  const list = await ghApi("/gists?per_page=100");
+  const hit = list.find(g=>g.files && g.files[SYNC_FILE]);
+  if(hit){ sync.gistId=hit.id; saveSync(); return; }
+  const made = await ghApi("/gists", { method:"POST", body:JSON.stringify({
+    description:"ヤフオク出品ツール 同期データ（自動生成・非公開）",
+    public:false,
+    files:{ [SYNC_FILE]: { content: payloadStr } }
+  })});
+  sync.gistId=made.id; saveSync();
+}
+function localPayload(){
+  return { v:1, savedAt:Date.now(), stamps:sync.stamps||{}, tpl:tpl, hist:loadHist(), cand:cand };
+}
+/* ローカルとリモートの合体ルール：
+   履歴=重複を除いて合体 / 入力候補=合体 / テンプレ=新しい方をベースに
+   番号カウンター=大きい方、型式・倉庫・梱包・イニシャル=合体、
+   型式対応表=空欄をもう片方の値で補完 */
+function mergePayload(L, R){
+  const stamps={};
+  ["tpl","hist","cand"].forEach(k=>{ stamps[k]=Math.max((L.stamps&&L.stamps[k])||0,(R.stamps&&R.stamps[k])||0); });
+  const key=r=>(r.date||"")+"|"+(r.prefix||"")+(r.number||"")+"|"+(r.title||"");
+  const m=new Map();
+  (R.hist||[]).forEach(r=>m.set(key(r),r));
+  (L.hist||[]).forEach(r=>m.set(key(r),r));
+  const hist=[...m.values()].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,500);
+  const candOut={};
+  new Set(Object.keys(L.cand||{}).concat(Object.keys(R.cand||{}))).forEach(k=>{
+    candOut[k]=[...new Set(((L.cand||{})[k]||[]).concat(((R.cand||{})[k]||[])))].slice(0,30);
+  });
+  const lNew=((L.stamps&&L.stamps.tpl)||0) >= ((R.stamps&&R.stamps.tpl)||0);
+  const base=JSON.parse(JSON.stringify((lNew?L.tpl:R.tpl)||{}));
+  const other=(lNew?R.tpl:L.tpl)||{};
+  base.lastNumber=Math.max(base.lastNumber||0, other.lastNumber||0);
+  ["prefixes","warehouses","packings","models"].forEach(k=>{
+    base[k]=[...new Set((base[k]||[]).concat(other[k]||[]))];
+  });
+  base.modelMap=base.modelMap||{};
+  Object.keys(other.modelMap||{}).forEach(code=>{
+    const b=base.modelMap[code], o=other.modelMap[code]||{};
+    if(!b){ base.modelMap[code]=o; return; }
+    if(!(b.car||"").trim() && (o.car||"").trim()) b.car=o.car;
+    if(!(b.maker||"").trim() && (o.maker||"").trim()) b.maker=o.maker;
+  });
+  return { v:1, savedAt:Date.now(), stamps:stamps, tpl:base, hist:hist, cand:candOut };
+}
+function applyPayload(p){
+  applyingRemote=true;
+  try{
+    tpl=p.tpl; localStorage.setItem(LS_TPL, JSON.stringify(tpl));
+    cand=p.cand||{}; localStorage.setItem(LS_CAND, JSON.stringify(cand));
+    saveHistArr(p.hist||[]);
+    sync.stamps=p.stamps||{}; saveSync();
+    if(!tpl.productTypes.some(t=>t.id===state.typeId)) state.typeId=tpl.productTypes[0].id;
+    renderModelChips(); renderPrefixChips(); renderWarehouseChips(); renderPackingChips();
+    renderTypeChips(); renderCondChips();
+    renderPartField(); renderSpecFields(); renderExtraChips(); renderBlockOrder();
+    renderEditor(); renderHist(); updateCarWarn(); regen();
+  } finally { applyingRemote=false; }
+}
+async function syncNow(silent){
+  if(syncing) return;
+  if(!sync.token){
+    syncStatus("未設定：トークンを入力してください");
+    if(!silent) toast("先にGitHubトークンを設定してください（⚙設定の一番下）");
+    return;
+  }
+  syncing=true; syncStatus("同期中…");
+  try{
+    const localStr = JSON.stringify(localPayload());
+    if(!sync.gistId) await findOrCreateGist(localStr);
+    let remote={};
+    try{
+      const g = await ghApi("/gists/"+sync.gistId);
+      const f = g.files && g.files[SYNC_FILE];
+      if(f && f.content) remote = JSON.parse(f.content);
+    }catch(e){
+      if((""+(e&&e.message)).indexOf("404")>=0){ sync.gistId=""; saveSync(); await findOrCreateGist(localStr); }
+      else throw e;
+    }
+    const merged = mergePayload(localPayload(), remote);
+    applyPayload(merged);
+    await ghApi("/gists/"+sync.gistId, { method:"PATCH", body:JSON.stringify({
+      files:{ [SYNC_FILE]: { content: JSON.stringify(merged) } }
+    })});
+    sync.lastSync=Date.now(); saveSync();
+    const t=new Date(sync.lastSync), z=n=>("0"+n).slice(-2);
+    syncStatus("✅ 最終同期 "+z(t.getMonth()+1)+"/"+z(t.getDate())+" "+z(t.getHours())+":"+z(t.getMinutes())+"　履歴"+(merged.hist||[]).length+"件・型式"+((merged.tpl.models||[]).length)+"件");
+    if(!silent) toast("同期しました（履歴"+(merged.hist||[]).length+"件）");
+  }catch(e){
+    syncStatus("⚠ 同期エラー："+((e&&e.message)||e));
+    if(!silent) toast("同期に失敗しました："+((e&&e.message)||e));
+  }finally{ syncing=false; }
+}
+
 /* ===== 初期化 ===== */
 $("modelAddBtn").onclick=addModel;
 $("modelAdd").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addModel();} });
@@ -1417,6 +1562,24 @@ renderTypeChips(); renderCondChips();
 renderPartField(); renderSpecFields(); renderExtraChips(); renderBlockOrder();
 renderEditor(); renderHist();
 updateCarWarn(); regen();
+
+/* クラウド同期の初期化 */
+$("ghToken").value = sync.token||"";
+$("syncAuto").checked = ("auto" in sync) ? !!sync.auto : true;
+sync.auto = $("syncAuto").checked;
+$("ghToken").addEventListener("input", ()=>{
+  sync.token=$("ghToken").value.trim(); sync.gistId=""; saveSync();
+  syncStatus(sync.token ? "トークン設定済み。「☁ 今すぐ同期」を押してください" : "未設定：トークンを入力してください");
+});
+$("syncAuto").addEventListener("change", ()=>{ sync.auto=$("syncAuto").checked; saveSync(); });
+$("syncNowBtn").onclick=()=>syncNow(false);
+if(sync.lastSync){
+  const t=new Date(sync.lastSync), z=n=>("0"+n).slice(-2);
+  syncStatus("最終同期 "+z(t.getMonth()+1)+"/"+z(t.getDate())+" "+z(t.getHours())+":"+z(t.getMinutes()));
+}else if(sync.token){
+  syncStatus("トークン設定済み");
+}
+if(sync.token && sync.auto) syncNow(true);
 </script>
 </body>
 </html>
